@@ -63,6 +63,16 @@ describe('GameSession', () => {
     expect(session.view()?.slime.stats.attack).toBe(15);
   });
 
+  it('최대 HP 를 강화하면 전투 중 HP 비율을 유지한 채 늘어난다', async () => {
+    const { session } = setup();
+    await session.start();
+    session.dispatch({ type: 'grantBattleReward', gold: 100, kills: {} });
+    const view = session.view()!;
+    (view.slime as { hp: number }).hp = 60; // 120 중 절반
+    expect(session.purchaseUpgrade('maxHp').ok).toBe(true);
+    expect(session.view()?.slime).toMatchObject({ hp: 73, stats: { maxHp: 145 } });
+  });
+
   it('클리어하면 다음 스테이지 전투를 새로 연다', async () => {
     const { session, store, events, advance } = setup();
     await session.start();

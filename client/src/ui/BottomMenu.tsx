@@ -1,15 +1,15 @@
-import { findUpgrade } from '../core/lookup';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { openSheet } from '../store/gameStore';
 import { useGame, useGameContext } from './GameContext';
 
 export function BottomMenu() {
   const { store, config } = useGameContext();
-  const canUpgrade = useGame((s) => {
-    const def = findUpgrade(config, 'attack');
-    const level = s.progress.slime.upgrades.attack ?? 0;
-    return !!def && !isMaxLevel(def, level) && s.progress.gold >= getUpgradeCost(def, level);
-  });
+  const canUpgrade = useGame((s) =>
+    config.upgrades.some((def) => {
+      const level = s.progress.slime.upgrades[def.id] ?? 0;
+      return !isMaxLevel(def, level) && s.progress.gold >= getUpgradeCost(def, level);
+    }),
+  );
 
   return (
     <nav className="menu">

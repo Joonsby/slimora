@@ -56,7 +56,7 @@ console.table(
   }),
 );
 
-console.log('■ 자동 플레이 (살 수 있으면 즉시 강화 · 실패 후 30초 사냥하고 재도전 · 배속 ×1)');
+console.log('■ 자동 플레이 (가장 싼 강화부터 즉시 구매 · 실패 후 30초 사냥하고 재도전 · 배속 ×1)');
 const results = await Promise.all([1, 2, 3].map((seed) => autoPlay(cfg, { maxGameMs: 3 * 3600_000, retryAfterMs: 30_000, seed })));
 console.table(
   results.map((r, i) => ({
@@ -64,6 +64,6 @@ console.table(
     ...Object.fromEntries(cfg.stages.map((st) => [`${st.id} 클리어`, r.clearedAtMs[st.id] ? mmss(r.clearedAtMs[st.id]!) : '-'])),
     실패: r.failures,
     사망: r.deaths,
-    공격력레벨: r.attackLevel,
+    '강화 (공격·HP·치명)': `${r.upgrades.attack}·${r.upgrades.maxHp}·${r.upgrades.critChance}`,
   })),
 );

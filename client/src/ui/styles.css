@@ -334,6 +334,12 @@ button:disabled {
   color: var(--muted);
 }
 
+.upgrade-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .upgrade-row {
   display: flex;
   align-items: center;

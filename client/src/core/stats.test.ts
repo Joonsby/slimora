@@ -11,10 +11,17 @@ describe('deriveSlimeStats', () => {
     expect(deriveSlimeStats({ upgrades: { attack: 5 } }, cfg).attack).toBe(27);
   });
 
-  it('치명타 확률은 상한을 넘지 않는다', () => {
+  it('최대 HP 강화 레벨 × 25 · 치명타 강화 레벨 × 0.5%p', () => {
+    const s = deriveSlimeStats({ upgrades: { maxHp: 4, critChance: 10 } }, cloneConfig());
+    expect(s.maxHp).toBe(220);
+    expect(s.critChance).toBeCloseTo(0.1);
+    expect(s.attack).toBe(12);
+  });
+
+  it('치명타 확률은 상한(60%)을 넘지 않는다', () => {
     const cfg = cloneConfig();
-    cfg.balance.slimeBase.critChance = 0.9;
-    expect(deriveSlimeStats({ upgrades: { attack: 0 } }, cfg).critChance).toBe(0.6);
+    cfg.balance.slimeBase.critChance = 0.5;
+    expect(deriveSlimeStats({ upgrades: { critChance: 50 } }, cfg).critChance).toBe(0.6);
   });
 });
 

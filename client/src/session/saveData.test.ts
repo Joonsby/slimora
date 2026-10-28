@@ -35,10 +35,18 @@ describe('저장 데이터', () => {
     const last = cfg.stages.length;
     expect(p).toEqual({
       gold: 0,
-      slime: { upgrades: { attack: 0 } },
+      slime: { upgrades: { attack: 0, maxHp: 0, critChance: 0 } },
       stage: { highestCleared: last, current: last, mode: 'farm', autoAdvance: true },
       lifetime: { kills: { bat: 3, golem: 0, fire: 0 }, goldEarned: 0, deaths: 2 },
     });
+  });
+
+  it('강화 종류가 늘기 전의 저장(공격력만)도 새 강화를 0 레벨로 채워 읽는다', () => {
+    expect(normalizeProgress({ slime: { upgrades: { attack: 7 } } }, cfg).slime.upgrades).toEqual({ attack: 7, maxHp: 0, critChance: 0 });
+  });
+
+  it('최대 레벨이 있는 강화는 그 위로 올라가지 않는다', () => {
+    expect(normalizeProgress({ slime: { upgrades: { critChance: 999 } } }, cfg).slime.upgrades.critChance).toBe(50);
   });
 
   it('클리어하지 않은 스테이지를 사냥 중이라고 적혀 있으면 도전으로 바꾼다', () => {

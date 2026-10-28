@@ -26,9 +26,17 @@ describe('보상 · 강화', () => {
     expect(before.gold).toBe(0);
   });
 
-  it('비용 = floor(10 × 1.13^레벨)', () => {
-    const def = cfg.upgrades[0]!;
-    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def, lv))).toEqual([10, 11, 12, 33]);
+  it('비용 — 공격력 · HP 는 floor(10 × 1.13^레벨), 치명타는 floor(50 × 1.2^레벨)', () => {
+    const def = (id: string) => cfg.upgrades.find((u) => u.id === id)!;
+    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def('attack'), lv))).toEqual([10, 11, 12, 33]);
+    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def('maxHp'), lv))).toEqual([10, 11, 12, 33]);
+    expect([0, 1, 2].map((lv) => getUpgradeCost(def('critChance'), lv))).toEqual([50, 60, 72]);
+  });
+
+  it('치명타 강화는 50 레벨에서 멈춘다', () => {
+    const s: ProgressState = { ...initial(), gold: 1e15, slime: { upgrades: { attack: 0, maxHp: 0, critChance: 50 } } };
+    expect(applyCommand(s, { type: 'purchaseUpgrade', upgrade: 'critChance' }, cfg)).toEqual({ ok: false, error: { code: 'MAX_LEVEL' } });
+    expect(applyCommand(s, { type: 'purchaseUpgrade', upgrade: 'maxHp' }, cfg).ok).toBe(true);
   });
 
   it('골드가 있으면 레벨이 오르고 비용만큼 줄어든다', () => {

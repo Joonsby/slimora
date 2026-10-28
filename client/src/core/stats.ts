@@ -2,8 +2,14 @@ import { findMonster, findStage } from './lookup';
 import type { CombatStats } from './model/battle';
 import type { BalanceConfig, GameConfig } from './model/config';
 import type { EffectSpec } from './model/effects';
-import type { MonsterId, StageId } from './model/ids';
-import type { SlimeProgress } from './model/progress';
+import type { MonsterId, StageId, UpgradeId } from './model/ids';
+
+/** 강화가 올리는 능력치. 강화 종류를 늘릴 때 여기에 한 줄 추가한다 */
+export const UPGRADE_STAT = {
+  attack: 'attack',
+  maxHp: 'maxHp',
+  critChance: 'critChance',
+} as const satisfies Record<UpgradeId, keyof CombatStats>;
 
 /** 스테이지 기준 수치. overrides 가 있으면 공식 대신 쓴다 */
 export function stageBase(cfg: GameConfig, stageId: StageId): { hp: number; atk: number; goldPerKill: number } {
@@ -51,31 +57,22 @@ export function applyEffects(base: CombatStats, effects: readonly EffectSpec[], 
   };
 }
 
-export function deriveSlimeStats(slime: SlimeProgress, cfg: GameConfig): CombatStats {
+export function deriveSlimeStats(slime: { upgrades: Partial<Record<UpgradeId, number>> }, cfg: GameConfig): CombatStats {
   const b = cfg.balance.slimeBase;
-  let attack = b.attack;
+  const stats: CombatStats = {
+    maxHp: b.maxHp,
+    attack: b.attack,
+    attackIntervalMs: b.attackIntervalMs,
+    critChance: b.critChance,
+    critMultiplier: b.critMultiplier,
+    lifesteal: 0,
+    damageReduction: 0,
+    burn: null,
+  };
   for (const up of cfg.upgrades) {
-    const level = slime.upgrades[up.id] ?? 0;
-    switch (up.id) {
-      case 'attack':
-        attack += up.perLevel * level;
-        break;
-    }
+    stats[UPGRADE_STAT[up.id]] += up.perLevel * (slime.upgrades[up.id] ?? 0);
   }
-  return applyEffects(
-    {
-      maxHp: b.maxHp,
-      attack,
-      attackIntervalMs: b.attackIntervalMs,
-      critChance: b.critChance,
-      critMultiplier: b.critMultiplier,
-      lifesteal: 0,
-      damageReduction: 0,
-      burn: null,
-    },
-    [],
-    cfg.balance.caps,
-  );
+  return applyEffects(stats, [], cfg.balance.caps);
 }
 
 export function deriveMonsterStats(monsterId: MonsterId, stageId: StageId, cfg: GameConfig): CombatStats {

@@ -1,6 +1,8 @@
 import { lastStageId } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
+import type { UpgradeId } from '../core/model/ids';
 import { createInitialProgress } from '../core/progression/initial';
+import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { MemorySaveRepository } from '../persistence/MemorySaveRepository';
 import { GameSession } from '../session/GameSession';
 import type { PlatformAdapter } from '../session/ports';
@@ -19,11 +21,11 @@ export interface AutoPlayResult {
   finishedAtMs: number | null;
   failures: number;
   deaths: number;
-  attackLevel: number;
+  upgrades: Record<UpgradeId, number>;
   elapsedMs: number;
 }
 
-/** 살 수 있으면 바로 강화하고, 실패하면 잠시 사냥하다 재도전하는 자동 플레이어. 밸런스 점검용 */
+/** 가장 싼 강화부터 살 수 있는 만큼 사고, 실패하면 잠시 사냥하다 재도전하는 자동 플레이어. 밸런스 점검용 */
 export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<AutoPlayResult> {
   let clock = 0;
   const platform: PlatformAdapter = { now: () => clock, onVisibilityChange: () => () => {} };
@@ -46,8 +48,8 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
   while (clock < opts.maxGameMs) {
     clock += step;
     session.tick(step);
-    while (session.purchaseUpgrade('attack').ok) {
-      // 살 수 있는 만큼 산다
+    for (let next = cheapestUpgrade(cfg, store.getState().progress); next; next = cheapestUpgrade(cfg, store.getState().progress)) {
+      if (!session.purchaseUpgrade(next).ok) break;
     }
     const { stage } = store.getState().progress;
     if (stage.highestCleared >= last) break;
@@ -69,7 +71,19 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
     finishedAtMs: p.stage.highestCleared >= last ? clock : null,
     failures,
     deaths: p.lifetime.deaths,
-    attackLevel: p.slime.upgrades.attack,
+    upgrades: p.slime.upgrades,
     elapsedMs: clock,
   };
+}
+
+/** 지금 살 수 있는 강화 중 가장 싼 것 */
+function cheapestUpgrade(cfg: GameConfig, p: { gold: number; slime: { upgrades: Record<UpgradeId, number> } }): UpgradeId | null {
+  let best: { id: UpgradeId; cost: number } | null = null;
+  for (const def of cfg.upgrades) {
+    const level = p.slime.upgrades[def.id] ?? 0;
+    if (isMaxLevel(def, level)) continue;
+    const cost = getUpgradeCost(def, level);
+    if (cost <= p.gold && (!best || cost < best.cost)) best = { id: def.id, cost };
+  }
+  return best?.id ?? null;
 }

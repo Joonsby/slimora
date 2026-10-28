@@ -1,3 +1,5 @@
 [
-  { "id": "attack", "name": "공격력", "perLevel": 3, "maxLevel": null, "cost": { "base": 10, "growth": 1.13 } }
+  { "id": "attack", "name": "공격력", "perLevel": 3, "maxLevel": null, "cost": { "base": 10, "growth": 1.13 } },
+  { "id": "maxHp", "name": "최대 HP", "perLevel": 25, "maxLevel": null, "cost": { "base": 10, "growth": 1.13 } },
+  { "id": "critChance", "name": "치명타 확률", "perLevel": 0.005, "maxLevel": 50, "cost": { "base": 50, "growth": 1.2 } }
 ]
