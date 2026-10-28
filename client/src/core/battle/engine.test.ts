@@ -27,7 +27,7 @@ describe('등장 · 공격 타이밍', () => {
     const cfg = arena({ hp: 100, gold: 5 });
     const b = farm(cfg, stats({ attack: 25, maxHp: 1000 }));
     const killed = ofType(run(b, cfg, 5000), 'monsterKilled');
-    expect(killed[0]).toMatchObject({ at: 4600, gold: 5, family: 'bat' });
+    expect(killed[0]).toMatchObject({ at: 4600, gold: 5, family: 'bat', absorb: 1 });
   });
 });
 

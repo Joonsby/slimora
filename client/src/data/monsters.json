@@ -7,6 +7,7 @@
     "atkMul": 0.6,
     "attackIntervalMs": 600,
     "goldMul": 0.9,
+    "absorbMul": 1,
     "effects": [{ "kind": "lifesteal", "ratio": 0.2 }],
     "visual": { "preset": "bat", "tint": "#9b6bdf", "scale": 0.85 }
   },
@@ -18,6 +19,7 @@
     "atkMul": 1.4,
     "attackIntervalMs": 1600,
     "goldMul": 1.2,
+    "absorbMul": 1,
     "effects": [{ "kind": "damageReduction", "ratio": 0.3 }],
     "visual": { "preset": "golem", "tint": "#a8977c", "scale": 1.1 }
   },
@@ -29,6 +31,7 @@
     "atkMul": 0.8,
     "attackIntervalMs": 1200,
     "goldMul": 1.1,
+    "absorbMul": 1,
     "effects": [{ "kind": "burnOnHit", "chance": 0.5, "dpsRatio": 0.3, "durationMs": 3000, "maxStacks": 3 }],
     "visual": { "preset": "dragon", "tint": "#ff7b39", "scale": 1.0 }
   }

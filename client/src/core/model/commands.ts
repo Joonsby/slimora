@@ -3,7 +3,7 @@ import type { FamilyId, StageId, UpgradeId } from './ids';
 
 /** 진행 상태를 바꾸는 유일한 경로 */
 export type GameCommand =
-  | { type: 'grantBattleReward'; gold: number; kills: Partial<Record<FamilyId, number>> }
+  | { type: 'grantBattleReward'; gold: number; kills: Partial<Record<FamilyId, number>>; absorb?: Partial<Record<FamilyId, number>> }
   | { type: 'purchaseUpgrade'; upgrade: UpgradeId }
   | { type: 'stageCleared'; stage: StageId }
   | { type: 'challengeFailed'; stage: StageId }

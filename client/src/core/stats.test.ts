@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cloneConfig, stats } from '../testing/fixtures';
-import { applyEffects, deriveMonsterStats, deriveSlimeStats, monsterGold } from './stats';
+import { applyEffects, deriveMonsterStats, deriveSlimeStats, monsterAbsorb, monsterGold } from './stats';
 
 const caps = { damageReduction: 0.7, lifesteal: 0.5, critChance: 0.6 };
 
@@ -16,6 +16,20 @@ describe('deriveSlimeStats', () => {
     expect(s.maxHp).toBe(220);
     expect(s.critChance).toBeCloseTo(0.1);
     expect(s.attack).toBe(12);
+  });
+
+  it('레벨 1 을 넘는 레벨마다 기본 HP · 공격력 +2% (강화분에는 붙지 않음)', () => {
+    // 흡수 160 → 레벨 5 → 기본값 × 1.08
+    const s = deriveSlimeStats({ upgrades: { attack: 2, maxHp: 0 }, absorption: { golem: 160 } }, cloneConfig());
+    expect(s.maxHp).toBe(130); // round(120 × 1.08)
+    expect(s.attack).toBe(19); // round(12 × 1.08) + 3 × 2
+  });
+
+  it('흡수 특성이 슬라임 효과로 들어간다', () => {
+    const s = deriveSlimeStats({ upgrades: {}, absorption: { bat: 300, golem: 1000, fire: 50 } }, cloneConfig());
+    expect(s.lifesteal).toBe(0.02);
+    expect(s.damageReduction).toBe(0.06);
+    expect(s.burn).toEqual({ chance: 0.05, dpsRatio: 0.05, durationMs: 2000, maxStacks: 1 });
   });
 
   it('치명타 확률은 상한(60%)을 넘지 않는다', () => {
@@ -63,6 +77,11 @@ describe('몬스터 수치', () => {
 
   it('골드 = 4 × 1.3^(s−1) × 계열 배율', () => {
     expect(monsterGold('fireDragon', 6, cloneConfig())).toBe(16);
+  });
+
+  it('처치당 흡수 = 1 + floor((s−1) ÷ 4)', () => {
+    const cfg = cloneConfig();
+    expect([1, 4, 5, 6].map((s) => monsterAbsorb(cfg.stages[s - 1]!.spawns[0]!.monster, s, cfg))).toEqual([1, 1, 2, 2]);
   });
 
   it('스테이지 overrides 가 있으면 공식 대신 쓴다', () => {

@@ -9,14 +9,22 @@ import { getUpgradeCost, isMaxLevel } from './upgrades';
 export function applyCommand(s: ProgressState, c: GameCommand, cfg: GameConfig): Result<ProgressState, RuleError> {
   switch (c.type) {
     case 'grantBattleReward': {
-      if (!Number.isFinite(c.gold) || c.gold < 0) return err({ code: 'INVALID_REWARD' });
+      const absorbEntries = Object.entries(c.absorb ?? {});
+      if (!isAmount(c.gold) || !absorbEntries.every(([, n]) => isAmount(n))) return err({ code: 'INVALID_REWARD' });
       const kills = { ...s.lifetime.kills };
       for (const [family, n] of Object.entries(c.kills)) {
         kills[family] = (kills[family] ?? 0) + (n ?? 0);
       }
+      let slime = s.slime;
+      if (absorbEntries.length > 0) {
+        const absorption = { ...s.slime.absorption };
+        for (const [family, n] of absorbEntries) absorption[family] = (absorption[family] ?? 0) + (n ?? 0);
+        slime = { ...s.slime, absorption };
+      }
       return ok({
         ...s,
         gold: s.gold + c.gold,
+        slime,
         lifetime: { ...s.lifetime, kills, goldEarned: s.lifetime.goldEarned + c.gold },
       });
     }
@@ -65,6 +73,10 @@ export function applyCommand(s: ProgressState, c: GameCommand, cfg: GameConfig):
     case 'setAutoAdvance':
       return ok(withStage(s, { autoAdvance: c.on }));
   }
+}
+
+function isAmount(n: unknown): boolean {
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0;
 }
 
 function withStage(s: ProgressState, patch: Partial<StageProgress>): ProgressState {

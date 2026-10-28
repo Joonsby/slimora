@@ -1,6 +1,7 @@
 import { lastStageId } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
 import type { UpgradeId } from '../core/model/ids';
+import type { ProgressState } from '../core/model/progress';
 import { createInitialProgress } from '../core/progression/initial';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { MemorySaveRepository } from '../persistence/MemorySaveRepository';
@@ -14,6 +15,8 @@ export interface AutoPlayOptions {
   retryAfterMs: number;
   stepMs?: number;
   seed?: number;
+  /** 처음 true 가 된 시각을 watchHitAtMs 로 돌려준다 */
+  watch?: (progress: ProgressState) => boolean;
 }
 
 export interface AutoPlayResult {
@@ -22,6 +25,8 @@ export interface AutoPlayResult {
   failures: number;
   deaths: number;
   upgrades: Record<UpgradeId, number>;
+  absorption: ProgressState['slime']['absorption'];
+  watchHitAtMs: number | null;
   elapsedMs: number;
 }
 
@@ -45,15 +50,18 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
   const last = lastStageId(cfg);
   const step = opts.stepMs ?? 100;
   let farmingSince: number | null = null;
+  let watchHitAtMs: number | null = null;
   while (clock < opts.maxGameMs) {
     clock += step;
     session.tick(step);
     for (let next = cheapestUpgrade(cfg, store.getState().progress); next; next = cheapestUpgrade(cfg, store.getState().progress)) {
       if (!session.purchaseUpgrade(next).ok) break;
     }
-    const { stage } = store.getState().progress;
-    if (stage.highestCleared >= last) break;
-    if (stage.mode === 'farm') {
+    const progress = store.getState().progress;
+    if (watchHitAtMs === null && opts.watch?.(progress)) watchHitAtMs = clock;
+    const { stage } = progress;
+    if (stage.highestCleared >= last && (!opts.watch || watchHitAtMs !== null)) break;
+    if (stage.mode === 'farm' && stage.highestCleared < last) {
       farmingSince ??= clock;
       if (clock - farmingSince >= opts.retryAfterMs) {
         session.challengeNext();
@@ -72,6 +80,8 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
     failures,
     deaths: p.lifetime.deaths,
     upgrades: p.slime.upgrades,
+    absorption: p.slime.absorption,
+    watchHitAtMs,
     elapsedMs: clock,
   };
 }

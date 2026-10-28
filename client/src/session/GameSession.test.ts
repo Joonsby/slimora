@@ -73,6 +73,19 @@ describe('GameSession', () => {
     expect(session.view()?.slime).toMatchObject({ hp: 73, stats: { maxHp: 145 } });
   });
 
+  it('처치하면 흡수가 쌓이고, 특성 단계가 오르면 진행 중인 전투에 바로 적용된다', async () => {
+    const { session, store, events, advance } = setup();
+    await session.start();
+    advance(5000);
+    expect(store.getState().progress.slime.absorption.bat).toBeGreaterThan(0);
+    expect(session.view()?.slime.stats.lifesteal).toBe(0);
+
+    session.dispatch({ type: 'grantBattleReward', gold: 0, kills: {}, absorb: { bat: 60 } });
+    expect(session.view()?.slime.stats.lifesteal).toBe(0.01);
+    expect(events).toContainEqual({ type: 'traitTierUp', family: 'bat', tier: 1 });
+    expect(events.some((e) => e.type === 'levelUp')).toBe(true);
+  });
+
   it('클리어하면 다음 스테이지 전투를 새로 연다', async () => {
     const { session, store, events, advance } = setup();
     await session.start();

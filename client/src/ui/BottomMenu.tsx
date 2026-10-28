@@ -17,9 +17,7 @@ export function BottomMenu() {
         강화{canUpgrade && <span className="dot" aria-label="강화 가능" />}
       </button>
       <button onClick={() => openSheet(store, 'stage')}>사냥터</button>
-      <button disabled>
-        흡수<small>다음 단계</small>
-      </button>
+      <button onClick={() => openSheet(store, 'absorb')}>흡수</button>
       <button disabled>
         진화<small>다음 단계</small>
       </button>

@@ -7,6 +7,7 @@ export function createInitialProgress(cfg: GameConfig): ProgressState {
     gold: 0,
     slime: {
       upgrades: Object.fromEntries(cfg.upgrades.map((u) => [u.id, 0])) as Record<UpgradeId, number>,
+      absorption: Object.fromEntries(cfg.families.map((f) => [f.id, 0])) as Record<FamilyId, number>,
     },
     stage: { highestCleared: 0, current: 1, mode: 'challenge', autoAdvance: true },
     lifetime: {

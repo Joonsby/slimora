@@ -5,9 +5,10 @@ import { createInitialProgress } from '../core/progression/initial';
 import type { SaveEnvelope } from './ports';
 import { DEFAULT_SETTINGS, normalizeSettings, type GameSettings } from './settings';
 
-export const SCHEMA_VERSION = 1;
+/** v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가 */
+export const SCHEMA_VERSION = 2;
 
-export interface SaveDataV1 {
+export interface SaveData {
   installId: string;
   createdAt: number;
   /** 다음 단계의 오프라인 보상 기준 */
@@ -16,19 +17,26 @@ export interface SaveDataV1 {
   settings: GameSettings;
 }
 
-export function newSaveData(cfg: GameConfig, now: number, installId: string): SaveDataV1 {
+export function newSaveData(cfg: GameConfig, now: number, installId: string): SaveData {
   return { installId, createdAt: now, lastActiveAt: now, progress: createInitialProgress(cfg), settings: { ...DEFAULT_SETTINGS } };
 }
 
-export function toEnvelope(data: SaveDataV1, cfg: GameConfig, now: number): SaveEnvelope {
+export function toEnvelope(data: SaveData, cfg: GameConfig, now: number): SaveEnvelope {
   return { schemaVersion: SCHEMA_VERSION, configVersion: cfg.configVersion, savedAt: now, data };
 }
 
 /** 단계별 마이그레이션. 키 = 출발 버전 */
-const MIGRATIONS: Record<number, (data: unknown) => unknown> = {};
+const MIGRATIONS: Record<number, (data: unknown) => unknown> = {
+  1: (data) => {
+    const d = data as { progress?: { slime?: Record<string, unknown> } };
+    const slime = d.progress?.slime;
+    if (!slime) return data;
+    return { ...d, progress: { ...d.progress, slime: { ...slime, absorption: slime.absorption ?? {} } } };
+  },
+};
 
 /** 읽을 수 없는 저장이면 null */
-export function restoreSaveData(env: SaveEnvelope, cfg: GameConfig): SaveDataV1 | null {
+export function restoreSaveData(env: SaveEnvelope, cfg: GameConfig): SaveData | null {
   let version = env.schemaVersion;
   let data = env.data;
   while (version < SCHEMA_VERSION) {
@@ -39,7 +47,7 @@ export function restoreSaveData(env: SaveEnvelope, cfg: GameConfig): SaveDataV1 
   }
   if (version !== SCHEMA_VERSION || typeof data !== 'object' || data === null) return null;
 
-  const raw = data as Partial<Record<keyof SaveDataV1, unknown>>;
+  const raw = data as Partial<Record<keyof SaveData, unknown>>;
   if (typeof raw.installId !== 'string' || raw.installId.length === 0) return null;
   return {
     installId: raw.installId,
@@ -57,6 +65,7 @@ export function normalizeProgress(raw: unknown, cfg: GameConfig): ProgressState 
   const r = raw as Record<string, unknown>;
   const slime = (r.slime ?? {}) as Record<string, unknown>;
   const upgrades = (slime.upgrades ?? {}) as Record<string, unknown>;
+  const absorption = (slime.absorption ?? {}) as Record<string, unknown>;
   const stage = (r.stage ?? {}) as Record<string, unknown>;
   const lifetime = (r.lifetime ?? {}) as Record<string, unknown>;
   const kills = (lifetime.kills ?? {}) as Record<string, unknown>;
@@ -65,7 +74,10 @@ export function normalizeProgress(raw: unknown, cfg: GameConfig): ProgressState 
     const level = nonNegInt(upgrades[u.id]);
     base.slime.upgrades[u.id] = u.maxLevel === null ? level : Math.min(level, u.maxLevel);
   }
-  for (const f of cfg.families) base.lifetime.kills[f.id] = nonNegInt(kills[f.id]);
+  for (const f of cfg.families) {
+    base.lifetime.kills[f.id] = nonNegInt(kills[f.id]);
+    base.slime.absorption[f.id] = nonNegInt(absorption[f.id]);
+  }
 
   const last = lastStageId(cfg);
   const highestCleared = Math.min(nonNegInt(stage.highestCleared), last);

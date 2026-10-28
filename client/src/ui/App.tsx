@@ -1,3 +1,4 @@
+import { AbsorbSheet } from './AbsorbSheet';
 import { BattleLog } from './BattleLog';
 import { BattleView } from './BattleView';
 import { BottomMenu } from './BottomMenu';
@@ -17,6 +18,7 @@ export function App() {
       <BottomMenu />
       <UpgradeSheet />
       <StageSheet />
+      <AbsorbSheet />
     </div>
   );
 }

@@ -43,6 +43,7 @@ export interface MonsterState extends UnitState {
   family: FamilyId;
   seq: number;
   gold: number;
+  absorb: number;
 }
 
 export interface BattleState {
@@ -67,7 +68,7 @@ export type BattleEvent =
   | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn'; reducedBy: number }
   | { type: 'heal'; at: number; to: Side; amount: number; source: 'lifesteal' | 'regen' }
   | { type: 'burnApplied'; at: number; to: Side; stacks: number }
-  | { type: 'monsterKilled'; at: number; defId: MonsterId; family: FamilyId; seq: number; gold: number }
+  | { type: 'monsterKilled'; at: number; defId: MonsterId; family: FamilyId; seq: number; gold: number; absorb: number }
   | { type: 'slimeDied'; at: number }
   | { type: 'respawned'; at: number }
   | { type: 'stageCleared'; at: number; stageId: StageId }

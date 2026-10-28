@@ -3,6 +3,7 @@ import balance from './balance.json';
 import families from './families.json';
 import monsters from './monsters.json';
 import stages from './stages.json';
+import traits from './traits.json';
 import upgrades from './upgrades.json';
 
 const { configVersion, ...balanceValues } = balance;
@@ -15,4 +16,5 @@ export const gameConfig = {
   monsters,
   stages,
   upgrades,
+  traits,
 } as unknown as GameConfig;

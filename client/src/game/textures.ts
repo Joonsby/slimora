@@ -23,11 +23,11 @@ export function createPlaceholderTextures(scene: Phaser.Scene): void {
   if (scene.textures.exists(TEX.slime)) return;
   const g = scene.make.graphics({}, false);
 
-  // 슬라임 120×100
-  g.fillStyle(0x4fd6a8).fillEllipse(60, 66, 108, 66).fillEllipse(60, 48, 72, 52);
-  g.fillStyle(0x34b088).fillEllipse(60, 88, 94, 18);
-  g.fillStyle(0xffffff, 0.55).fillEllipse(40, 40, 22, 12);
-  g.fillStyle(0x17302a).fillCircle(50, 62, 6).fillCircle(76, 62, 6);
+  // 슬라임 120×100 — 회색조로 그리고 흡수 색(slimeColor)을 tint 로 입힌다
+  g.fillStyle(0xf0f0f0).fillEllipse(60, 66, 108, 66).fillEllipse(60, 48, 72, 52);
+  g.fillStyle(0xc2c2c2).fillEllipse(60, 88, 94, 18);
+  g.fillStyle(0xffffff, 0.7).fillEllipse(40, 40, 22, 12);
+  g.fillStyle(0x1a1a1a).fillCircle(50, 62, 6).fillCircle(76, 62, 6);
   g.fillStyle(0xffffff).fillCircle(52, 60, 2).fillCircle(78, 60, 2);
   g.generateTexture(TEX.slime, 120, 100);
 

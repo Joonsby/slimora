@@ -3,7 +3,7 @@ import type { BattleEvent, BattleMode, BattleState, CombatStats, Side, UnitState
 import type { GameConfig, StageDef } from '../model/config';
 import type { MonsterId, StageId } from '../model/ids';
 import { nextFloat } from '../rng';
-import { deriveMonsterStats, monsterGold } from '../stats';
+import { deriveMonsterStats, monsterAbsorb, monsterGold } from '../stats';
 import { applyBurn, burnTickDamage, computeHit, lifestealAmount } from './damage';
 
 export interface BattleInit {
@@ -147,6 +147,7 @@ function spawnMonster(state: BattleState, cfg: GameConfig, events: BattleEvent[]
     family: def.family,
     seq,
     gold: monsterGold(defId, state.stageId, cfg),
+    absorb: monsterAbsorb(defId, state.stageId, cfg),
   };
   state.slime.nextAttackAt = state.now + state.slime.stats.attackIntervalMs;
   state.phase = 'fighting';
@@ -213,7 +214,7 @@ function onDeath(state: BattleState, side: Side, cfg: GameConfig, events: Battle
   const b = cfg.balance.battle;
   if (side === 'monster') {
     const m = state.monster!;
-    events.push({ type: 'monsterKilled', at, defId: m.defId, family: m.family, seq: m.seq, gold: m.gold });
+    events.push({ type: 'monsterKilled', at, defId: m.defId, family: m.family, seq: m.seq, gold: m.gold, absorb: m.absorb });
     state.kills += 1;
     state.monster = null;
     // 몬스터가 쓰러지면 그 몬스터가 붙인 화상도 꺼진다

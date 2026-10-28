@@ -34,7 +34,7 @@ describe('보상 · 강화', () => {
   });
 
   it('치명타 강화는 50 레벨에서 멈춘다', () => {
-    const s: ProgressState = { ...initial(), gold: 1e15, slime: { upgrades: { attack: 0, maxHp: 0, critChance: 50 } } };
+    const s: ProgressState = { ...initial(), gold: 1e15, slime: { ...initial().slime, upgrades: { attack: 0, maxHp: 0, critChance: 50 } } };
     expect(applyCommand(s, { type: 'purchaseUpgrade', upgrade: 'critChance' }, cfg)).toEqual({ ok: false, error: { code: 'MAX_LEVEL' } });
     expect(applyCommand(s, { type: 'purchaseUpgrade', upgrade: 'maxHp' }, cfg).ok).toBe(true);
   });
@@ -55,6 +55,32 @@ describe('보상 · 강화', () => {
   it('음수 · 비정상 보상은 거부한다', () => {
     expect(applyCommand(initial(), { type: 'grantBattleReward', gold: -1, kills: {} }, cfg).ok).toBe(false);
     expect(applyCommand(initial(), { type: 'grantBattleReward', gold: Number.NaN, kills: {} }, cfg).ok).toBe(false);
+    expect(applyCommand(initial(), { type: 'grantBattleReward', gold: 1, kills: {}, absorb: { bat: -5 } }, cfg).ok).toBe(false);
+  });
+
+  it('흡수는 계열별로 쌓이고, 흡수가 없는 보상은 슬라임 객체를 바꾸지 않는다', () => {
+    const before = initial();
+    const after = apply(before, { type: 'grantBattleReward', gold: 1, kills: { bat: 1 }, absorb: { bat: 2 } }, { type: 'grantBattleReward', gold: 1, kills: {}, absorb: { fire: 3, bat: 1 } });
+    expect(after.slime.absorption).toEqual({ bat: 3, golem: 0, fire: 3 });
+    expect(before.slime.absorption.bat).toBe(0);
+    const goldOnly = apply(after, { type: 'grantBattleReward', gold: 5, kills: {} });
+    expect(goldOnly.slime).toBe(after.slime);
+  });
+
+  it('어떤 커맨드도 흡수량을 줄이지 않는다', () => {
+    let s = apply(initial(), { type: 'grantBattleReward', gold: 1000, kills: {}, absorb: { bat: 120, golem: 40 } });
+    const before = { ...s.slime.absorption };
+    for (const cmd of [
+      { type: 'purchaseUpgrade', upgrade: 'attack' },
+      { type: 'recordDeath' },
+      { type: 'challengeFailed', stage: 1 },
+      { type: 'stageCleared', stage: 1 },
+      { type: 'enterStage', stage: 1, mode: 'farm' },
+      { type: 'setAutoAdvance', on: false },
+    ] as const) {
+      s = apply(s, cmd);
+      for (const [family, n] of Object.entries(before)) expect(s.slime.absorption[family]).toBeGreaterThanOrEqual(n);
+    }
   });
 });
 

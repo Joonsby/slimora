@@ -45,6 +45,7 @@ export function arena(opts: ArenaOptions = {}): GameConfig {
       atkMul: 1,
       attackIntervalMs: 1000,
       goldMul: 1,
+      absorbMul: 1,
       effects: [],
       visual: { preset: 'blob', tint: '#ffffff', scale: 1 },
       ...opts.monster,

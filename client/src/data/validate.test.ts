@@ -17,6 +17,8 @@ describe('validateConfig', () => {
     cfg.stages[1]!.id = 7;
     cfg.stages[2]!.spawns = [{ monster: 'nobody', weight: 1 }];
     cfg.upgrades[0]!.cost.growth = 1;
+    cfg.traits[0]!.tiers[1]!.minAbsorb = 10;
+    cfg.traits[1]!.family = 'ghost';
 
     const errors = validateConfig(cfg).join('\n');
     expect(errors).toContain("없는 계열 'ghost'");
@@ -25,5 +27,7 @@ describe('validateConfig', () => {
     expect(errors).toContain('stages[1].id');
     expect(errors).toContain("없는 몬스터 'nobody'");
     expect(errors).toContain('cost.growth');
+    expect(errors).toContain('traits.bat.tiers[1].minAbsorb: 앞 단계보다 커야 함');
+    expect(errors).toContain("traits.ghost: 없는 계열 'ghost'");
   });
 });

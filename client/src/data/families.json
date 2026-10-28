@@ -1,5 +1,5 @@
 [
-  { "id": "bat", "name": "박쥐", "color": "#9b6bdf" },
-  { "id": "golem", "name": "골렘", "color": "#a8977c" },
-  { "id": "fire", "name": "화염", "color": "#ff7b39" }
+  { "id": "bat", "name": "박쥐", "color": "#8e5ad6" },
+  { "id": "golem", "name": "골렘", "color": "#8f7b5a" },
+  { "id": "fire", "name": "화염", "color": "#f0652a" }
 ]

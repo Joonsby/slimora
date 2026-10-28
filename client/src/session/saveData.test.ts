@@ -15,6 +15,39 @@ describe('저장 데이터', () => {
     expect(restored).toEqual(data);
   });
 
+  it('v1 저장(흡수 이전)을 v2 로 올려 읽는다 — 진행은 그대로, 흡수는 0', () => {
+    // 2026-10-28 프로토타입이 실제로 남긴 형식. 지우지 말 것
+    const v1 = {
+      schemaVersion: 1,
+      configVersion: '0.1.0',
+      savedAt: 1,
+      data: {
+        installId: 'old-install',
+        createdAt: 1,
+        lastActiveAt: 2,
+        progress: {
+          gold: 16,
+          slime: { upgrades: { attack: 9 } },
+          stage: { highestCleared: 1, current: 1, mode: 'farm', autoAdvance: false },
+          lifetime: { kills: { bat: 28, golem: 9, fire: 0 }, goldEarned: 166, deaths: 1 },
+        },
+        settings: { battleSpeed: 3 },
+      },
+    };
+    expect(restoreSaveData(v1, cfg)).toEqual({
+      installId: 'old-install',
+      createdAt: 1,
+      lastActiveAt: 2,
+      progress: {
+        gold: 16,
+        slime: { upgrades: { attack: 9, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 } },
+        stage: { highestCleared: 1, current: 1, mode: 'farm', autoAdvance: false },
+        lifetime: { kills: { bat: 28, golem: 9, fire: 0 }, goldEarned: 166, deaths: 1 },
+      },
+      settings: { battleSpeed: 3 },
+    });
+  });
+
   it('모르는 버전 · 필수값 누락은 null', () => {
     const data = newSaveData(cfg, 0, 'x');
     expect(restoreSaveData({ ...toEnvelope(data, cfg, 0), schemaVersion: 99 }, cfg)).toBeNull();
@@ -35,7 +68,7 @@ describe('저장 데이터', () => {
     const last = cfg.stages.length;
     expect(p).toEqual({
       gold: 0,
-      slime: { upgrades: { attack: 0, maxHp: 0, critChance: 0 } },
+      slime: { upgrades: { attack: 0, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 } },
       stage: { highestCleared: last, current: last, mode: 'farm', autoAdvance: true },
       lifetime: { kills: { bat: 3, golem: 0, fire: 0 }, goldEarned: 0, deaths: 2 },
     });

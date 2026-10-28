@@ -5,16 +5,17 @@ import type { GameCommand, RuleError } from '../core/model/commands';
 import type { GameConfig } from '../core/model/config';
 import type { StageId, UpgradeId } from '../core/model/ids';
 import type { ProgressState } from '../core/model/progress';
+import { diffGrowth, type GrowthChange } from '../core/progression/absorption';
 import { applyCommand } from '../core/progression/applyCommand';
 import type { Result } from '../core/result';
 import { seedFrom } from '../core/rng';
-import { deriveSlimeStats } from '../core/stats';
+import { deriveSlimeStats, sameCombatStats } from '../core/stats';
 import type { GameStore } from '../store/gameStore';
 import type { PlatformAdapter, SaveRepository } from './ports';
-import { newSaveData, restoreSaveData, toEnvelope, type SaveDataV1 } from './saveData';
+import { newSaveData, restoreSaveData, toEnvelope, type SaveData } from './saveData';
 import type { BattleSpeed } from './settings';
 
-export type SessionEvent = BattleEvent | { type: 'battleStarted'; at: number; stageId: StageId; mode: BattleMode };
+export type SessionEvent = BattleEvent | GrowthChange | { type: 'battleStarted'; at: number; stageId: StageId; mode: BattleMode };
 export type SessionListener = (events: readonly SessionEvent[]) => void;
 export type StartStatus = 'new' | 'restored' | 'recovered' | 'reset';
 
@@ -36,10 +37,12 @@ export class GameSession {
   private readonly listeners = new Set<SessionListener>();
   private readonly seed: number;
   private battleCount = 0;
-  private meta: Pick<SaveDataV1, 'installId' | 'createdAt'> = { installId: '', createdAt: 0 };
+  private meta: Pick<SaveData, 'installId' | 'createdAt'> = { installId: '', createdAt: 0 };
   private dirty = false;
   private lastSavedAt = 0;
   private unsubscribeVisibility: (() => void) | null = null;
+  /** 다음 emit 에 실어 보낼 레벨 · 특성 변화 */
+  private growth: GrowthChange[] = [];
 
   constructor(private readonly deps: SessionDeps) {
     this.seed = deps.seed ?? Math.floor(Math.random() * 0xffffffff);
@@ -54,7 +57,7 @@ export class GameSession {
     const now = platform.now();
     const loaded = await repo.load();
 
-    let data: SaveDataV1 | null = null;
+    let data: SaveData | null = null;
     let status: StartStatus = 'new';
     if (loaded.status === 'ok') {
       data = restoreSaveData(loaded.envelope, config);
@@ -88,7 +91,7 @@ export class GameSession {
     const battleEvents = stepBattle(battle, dt, this.deps.config);
     const after: SessionEvent[] = [];
     for (const e of battleEvents) this.handleBattleEvent(e, after);
-    const events: SessionEvent[] = [...battleEvents, ...after];
+    const events: SessionEvent[] = [...battleEvents, ...this.takeGrowth(), ...after];
     if (events.length > 0) this.emit(events);
     if (this.dirty && this.deps.platform.now() - this.lastSavedAt >= SAVE_INTERVAL_MS) void this.saveNow();
   }
@@ -96,12 +99,13 @@ export class GameSession {
   /** UI 의 유일한 쓰기 경로 */
   dispatch(cmd: GameCommand): Result<ProgressState, RuleError> {
     const result = this.apply(cmd);
-    if (!result.ok || !this.battle) return result;
-    if (cmd.type === 'purchaseUpgrade') applySlimeStats(this.battle, deriveSlimeStats(result.value.slime, this.deps.config));
+    if (!result.ok) return result;
+    const events: SessionEvent[] = this.takeGrowth();
     if (cmd.type === 'enterStage') {
       const started = this.syncBattle();
-      if (started) this.emit([started]);
+      if (started) events.push(started);
     }
+    if (events.length > 0) this.emit(events);
     return result;
   }
 
@@ -151,23 +155,46 @@ export class GameSession {
     }
   }
 
+  /** 렌더링용 읽기 전용 진행 상태 (슬라임 색 등) */
+  getProgress(): Readonly<ProgressState> {
+    return this.progress();
+  }
+
   private progress(): ProgressState {
     return this.deps.store.getState().progress;
   }
 
   private apply(cmd: GameCommand): Result<ProgressState, RuleError> {
-    const result = applyCommand(this.progress(), cmd, this.deps.config);
+    const before = this.progress();
+    const result = applyCommand(before, cmd, this.deps.config);
     if (result.ok) {
       this.deps.store.setState({ progress: result.value });
       this.dirty = true;
+      if (result.value.slime !== before.slime) this.onSlimeChanged(before, result.value);
     }
     return result;
+  }
+
+  /** 강화 · 흡수로 슬라임이 바뀌면 진행 중인 전투에 즉시 반영하고 레벨 · 특성 변화를 모은다 */
+  private onSlimeChanged(before: ProgressState, after: ProgressState): void {
+    const { config } = this.deps;
+    this.growth.push(...diffGrowth(before.slime.absorption, after.slime.absorption, config));
+    const battle = this.battle;
+    if (!battle) return;
+    const stats = deriveSlimeStats(after.slime, config);
+    if (!sameCombatStats(stats, battle.slime.stats)) applySlimeStats(battle, stats);
+  }
+
+  private takeGrowth(): GrowthChange[] {
+    const taken = this.growth;
+    this.growth = [];
+    return taken;
   }
 
   private handleBattleEvent(e: BattleEvent, after: SessionEvent[]): void {
     switch (e.type) {
       case 'monsterKilled':
-        this.apply({ type: 'grantBattleReward', gold: e.gold, kills: { [e.family]: 1 } });
+        this.apply({ type: 'grantBattleReward', gold: e.gold, kills: { [e.family]: 1 }, absorb: { [e.family]: e.absorb } });
         this.updateHud();
         break;
       case 'slimeDied':

@@ -12,7 +12,7 @@ export interface BattleHud {
   killsToClear: number;
 }
 
-export type Sheet = 'none' | 'upgrade' | 'stage';
+export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb';
 export type LogTone = 'normal' | 'good' | 'bad' | 'gold';
 
 export interface LogEntry {

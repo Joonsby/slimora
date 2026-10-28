@@ -30,6 +30,9 @@ export function validateConfig(cfg: GameConfig): string[] {
   for (const key of ['hpBase', 'atkBase', 'powerGrowth', 'goldBase', 'goldGrowth'] as const) {
     positive(stageScaling[key], `stageScaling.${key}`);
   }
+  posInt(stageScaling.absorbStep, 'stageScaling.absorbStep');
+  positive(cfg.balance.level?.divisor, 'level.divisor');
+  check(typeof cfg.balance.level?.statBonusPerLevel === 'number' && cfg.balance.level.statBonusPerLevel >= 0, 'level.statBonusPerLevel: 0 이상이어야 함');
 
   const familyIds = uniqueIds(cfg.families.map((f) => f.id), 'families', errors);
   const monsterIds = uniqueIds(cfg.monsters.map((m) => m.id), 'monsters', errors);
@@ -41,7 +44,20 @@ export function validateConfig(cfg: GameConfig): string[] {
     positive(m.atkMul, `${p}.atkMul`);
     posInt(m.attackIntervalMs, `${p}.attackIntervalMs`);
     positive(m.goldMul, `${p}.goldMul`);
+    positive(m.absorbMul, `${p}.absorbMul`);
     m.effects.forEach((e, i) => validateEffect(e, `${p}.effects[${i}]`, errors));
+  }
+
+  uniqueIds(cfg.traits.map((t) => t.family), 'traits', errors);
+  for (const t of cfg.traits) {
+    const p = `traits.${t.family}`;
+    check(familyIds.has(t.family), `${p}: 없는 계열 '${t.family}'`);
+    check(t.tiers.length > 0, `${p}.tiers: 비어 있음`);
+    t.tiers.forEach((tier, i) => {
+      positive(tier.minAbsorb, `${p}.tiers[${i}].minAbsorb`);
+      if (i > 0) check(tier.minAbsorb > t.tiers[i - 1]!.minAbsorb, `${p}.tiers[${i}].minAbsorb: 앞 단계보다 커야 함`);
+      tier.effects.forEach((e, j) => validateEffect(e, `${p}.tiers[${i}].effects[${j}]`, errors));
+    });
   }
 
   cfg.stages.forEach((s, i) => {

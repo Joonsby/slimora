@@ -11,6 +11,8 @@ export interface ProgressState {
 
 export interface SlimeProgress {
   upgrades: Record<UpgradeId, number>;
+  /** 계열별 누적 흡수량. 줄어들지 않는다 */
+  absorption: Record<FamilyId, number>;
 }
 
 export interface StageProgress {

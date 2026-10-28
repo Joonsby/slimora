@@ -1,0 +1,26 @@
+[
+  {
+    "family": "bat",
+    "tiers": [
+      { "minAbsorb": 50, "effects": [{ "kind": "lifesteal", "ratio": 0.01 }] },
+      { "minAbsorb": 300, "effects": [{ "kind": "lifesteal", "ratio": 0.02 }] },
+      { "minAbsorb": 1000, "effects": [{ "kind": "lifesteal", "ratio": 0.03 }] }
+    ]
+  },
+  {
+    "family": "golem",
+    "tiers": [
+      { "minAbsorb": 50, "effects": [{ "kind": "damageReduction", "ratio": 0.02 }] },
+      { "minAbsorb": 300, "effects": [{ "kind": "damageReduction", "ratio": 0.04 }] },
+      { "minAbsorb": 1000, "effects": [{ "kind": "damageReduction", "ratio": 0.06 }] }
+    ]
+  },
+  {
+    "family": "fire",
+    "tiers": [
+      { "minAbsorb": 50, "effects": [{ "kind": "burnOnHit", "chance": 0.05, "dpsRatio": 0.05, "durationMs": 2000, "maxStacks": 1 }] },
+      { "minAbsorb": 300, "effects": [{ "kind": "burnOnHit", "chance": 0.1, "dpsRatio": 0.05, "durationMs": 2000, "maxStacks": 1 }] },
+      { "minAbsorb": 1000, "effects": [{ "kind": "burnOnHit", "chance": 0.15, "dpsRatio": 0.05, "durationMs": 2000, "maxStacks": 1 }] }
+    ]
+  }
+]

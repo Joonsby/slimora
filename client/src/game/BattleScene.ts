@@ -4,6 +4,7 @@ import type { BattleEvent, Side, UnitState } from '../core/model/battle';
 import type { StageId } from '../core/model/ids';
 import type { GameSession, SessionEvent } from '../session/GameSession';
 import { DamageTextPool, FONT_FAMILY } from './DamageTextPool';
+import { slimeTint } from './slimeColor';
 import { createPlaceholderTextures, presetTexture, TEX } from './textures';
 
 interface Layout {
@@ -31,6 +32,7 @@ export class BattleScene extends Phaser.Scene {
   private monster: Phaser.GameObjects.Image | null = null;
   private monsterSeq = 0;
   private monsterTint = 0xffffff;
+  private slimeColor = 0xffffff;
   private ground!: Phaser.GameObjects.Graphics;
   private overlay!: Phaser.GameObjects.Graphics;
   private banner!: Phaser.GameObjects.Text;
@@ -61,6 +63,7 @@ export class BattleScene extends Phaser.Scene {
 
     const view = this.session.view();
     if (view) this.stageId = view.stageId;
+    this.refreshSlimeColor();
     this.relayout(this.scale.width, this.scale.height);
     if (view?.monster) this.showMonster(view.monster.defId, view.monster.seq, false);
     if (view && view.slime.hp <= 0) this.slime.setScale(this.layout.unit, this.layout.unit * 0.3).setAlpha(0.5);
@@ -164,9 +167,22 @@ export class BattleScene extends Phaser.Scene {
           if (this.monster && this.monsterSeq === e.seq) {
             const p = this.textAnchor('monster');
             this.texts.show(p.x, p.y - 10, `+${e.gold} G`, { color: '#ffd84a', size: Math.round(20 * this.layout.unit) });
+            this.texts.show(p.x, p.y + 16 * this.layout.unit, `흡수 +${e.absorb}`, { color: this.familyColor(e.family), size: Math.round(14 * this.layout.unit) });
             this.removeMonster(true);
           }
+          this.refreshSlimeColor();
           break;
+        case 'levelUp': {
+          const p = this.textAnchor('slime');
+          this.texts.show(p.x, p.y - 20 * this.layout.unit, `Lv ${e.level}!`, { color: '#7be495', size: Math.round(22 * this.layout.unit) });
+          break;
+        }
+        case 'traitTierUp': {
+          const p = this.textAnchor('slime');
+          const name = this.session.config.families.find((f) => f.id === e.family)?.name ?? e.family;
+          this.texts.show(p.x, p.y - 40 * this.layout.unit, `${name} 특성 ${e.tier}단계`, { color: this.familyColor(e.family), size: Math.round(16 * this.layout.unit) });
+          break;
+        }
         case 'slimeDied':
           this.idleTween?.stop();
           this.tweens.add({ targets: this.slime, scaleY: this.layout.unit * 0.3, alpha: 0.5, duration: 260, ease: 'Quad.easeIn' });
@@ -208,9 +224,18 @@ export class BattleScene extends Phaser.Scene {
     if (!sprite) return;
     sprite.setTintFill(0xffffff);
     this.time.delayedCall(60, () => {
-      if (side === 'slime') sprite.clearTint();
-      else sprite.setTint(this.monsterTint);
+      sprite.setTint(side === 'slime' ? this.slimeColor : this.monsterTint);
     });
+  }
+
+  private refreshSlimeColor(): void {
+    const { config } = this.session;
+    this.slimeColor = slimeTint(this.session.getProgress().slime.absorption, config.families);
+    this.slime.setTint(this.slimeColor);
+  }
+
+  private familyColor(family: string): string {
+    return this.session.config.families.find((f) => f.id === family)?.color ?? '#ffffff';
   }
 
   private lunge(side: Side): void {

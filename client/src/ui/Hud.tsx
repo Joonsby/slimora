@@ -1,5 +1,5 @@
 import { findStage, lastStageId } from '../core/lookup';
-import { deriveSlimeStats } from '../core/stats';
+import { getSlimeLevel } from '../core/progression/absorption';
 import { BATTLE_SPEEDS } from '../session/settings';
 import { openSheet } from '../store/gameStore';
 import { formatNumber } from './format';
@@ -12,7 +12,7 @@ export function Hud() {
   const highest = useGame((s) => s.progress.stage.highestCleared);
   const autoAdvance = useGame((s) => s.progress.stage.autoAdvance);
   const speed = useGame((s) => s.settings.battleSpeed);
-  const attack = useGame((s) => deriveSlimeStats(s.progress.slime, config).attack);
+  const level = useGame((s) => getSlimeLevel(s.progress.slime.absorption, config));
 
   const stage = findStage(config, hud.stageId);
   const canChallenge = hud.mode === 'farm' && highest < lastStageId(config);
@@ -39,7 +39,9 @@ export function Hud() {
       </div>
       <div className="hud-row">
         <span className={`chip mode-${hud.mode}`}>{hud.mode === 'challenge' ? `도전 ${hud.kills}/${hud.killsToClear}` : '사냥 중'}</span>
-        <span className="chip stat">공격력 {formatNumber(attack)}</span>
+        <button className="chip level" onClick={() => openSheet(store, 'absorb')} aria-label={`슬라임 레벨 ${level}, 흡수 보기`}>
+          Lv {level}
+        </button>
         <span className="spacer" />
         <button className={`toggle ${autoAdvance ? 'on' : ''}`} onClick={() => session.setAutoAdvance(!autoAdvance)} aria-pressed={autoAdvance} aria-label="자동진행">
           자동 {autoAdvance ? 'ON' : 'OFF'}
