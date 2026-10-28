@@ -1,0 +1,5 @@
+[
+  { "id": "bat", "name": "박쥐", "color": "#9b6bdf" },
+  { "id": "golem", "name": "골렘", "color": "#a8977c" },
+  { "id": "fire", "name": "화염", "color": "#ff7b39" }
+]

@@ -1,0 +1,7 @@
+{
+  "configVersion": "0.1.0",
+  "slimeBase": { "maxHp": 120, "attack": 12, "attackIntervalMs": 1000, "critChance": 0.05, "critMultiplier": 1.5 },
+  "caps": { "damageReduction": 0.7, "lifesteal": 0.5, "critChance": 0.6 },
+  "battle": { "spawnDelayMs": 600, "regenOnKillRatio": 0.1, "deathDelayMs": 2000, "burnTickMs": 500 },
+  "stageScaling": { "hpBase": 40, "atkBase": 4, "powerGrowth": 1.22, "goldBase": 4, "goldGrowth": 1.3 }
+}

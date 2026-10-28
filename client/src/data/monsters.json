@@ -1,0 +1,35 @@
+[
+  {
+    "id": "bat",
+    "family": "bat",
+    "name": "박쥐",
+    "hpMul": 0.7,
+    "atkMul": 0.6,
+    "attackIntervalMs": 600,
+    "goldMul": 0.9,
+    "effects": [{ "kind": "lifesteal", "ratio": 0.2 }],
+    "visual": { "preset": "bat", "tint": "#9b6bdf", "scale": 0.85 }
+  },
+  {
+    "id": "golem",
+    "family": "golem",
+    "name": "골렘",
+    "hpMul": 1.8,
+    "atkMul": 1.4,
+    "attackIntervalMs": 1600,
+    "goldMul": 1.2,
+    "effects": [{ "kind": "damageReduction", "ratio": 0.3 }],
+    "visual": { "preset": "golem", "tint": "#a8977c", "scale": 1.1 }
+  },
+  {
+    "id": "fireDragon",
+    "family": "fire",
+    "name": "화염 드래곤",
+    "hpMul": 1.0,
+    "atkMul": 0.8,
+    "attackIntervalMs": 1200,
+    "goldMul": 1.1,
+    "effects": [{ "kind": "burnOnHit", "chance": 0.5, "dpsRatio": 0.3, "durationMs": 3000, "maxStacks": 3 }],
+    "visual": { "preset": "dragon", "tint": "#ff7b39", "scale": 1.0 }
+  }
+]

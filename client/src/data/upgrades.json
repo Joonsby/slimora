@@ -1,0 +1,3 @@
+[
+  { "id": "attack", "name": "공격력", "perLevel": 3, "maxLevel": null, "cost": { "base": 10, "growth": 1.13 } }
+]
