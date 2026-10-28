@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>가로형 스크린샷 1504×741</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=block" />
+    <style>
+      html, body { margin: 0; }
+      .frame {
+        position: relative;
+        width: 1504px;
+        height: 741px;
+        overflow: hidden;
+        background: radial-gradient(120% 120% at 20% 20%, #3B357A 0%, #1B1838 70%);
+        font-family: Jua, 'Malgun Gothic', sans-serif;
+        color: #fff;
+      }
+      .copy { position: absolute; left: 72px; top: 92px; width: 560px; }
+      .title { margin: 0; font-size: 92px; line-height: 1.05; font-weight: 400; }
+      .title span { color: #86EECD; }
+      .tagline { margin: 22px 0 42px; font-size: 32px; color: #E6E1FF; }
+      .features { display: flex; flex-direction: column; gap: 22px; margin: 0; padding: 0; list-style: none; }
+      .features li { display: flex; align-items: center; gap: 18px; font-size: 30px; }
+      .features b { display: inline-grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; font-size: 28px; font-weight: 400; }
+      .features small { display: block; font-size: 21px; color: #B9B3E6; }
+      .shots { position: absolute; right: 56px; top: 60px; width: 840px; height: 620px; }
+      .shots img { position: absolute; top: 34px; height: 560px; border-radius: 22px; box-shadow: 0 24px 50px rgba(0, 0, 0, .45); }
+      .shots img:nth-child(1) { left: 0; transform: rotate(-5deg); }
+      .shots img:nth-child(2) { left: 240px; top: 6px; height: 590px; z-index: 2; }
+      .shots img:nth-child(3) { left: 500px; transform: rotate(5deg); }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="copy">
+        <h1 class="title">슬라임<br /><span>용병단</span></h1>
+        <p class="tagline">몬스터를 흡수해 강해지는 방치형 RPG</p>
+        <ul class="features">
+          <li><b style="background:#4FD6A8;color:#0d3a2c">⚔</b><div>자동 전투<small>켜 두기만 해도 사냥하고 성장</small></div></li>
+          <li><b style="background:#FF8A4C;color:#3d1505">◆</b><div>몬스터 흡수<small>사냥한 계열의 특성과 색을 얻는다</small></div></li>
+          <li><b style="background:#FFC933;color:#4a3500">▲</b><div>강화 · 배속<small>공격력 · HP · 치명타, 최대 ×3 배속</small></div></li>
+        </ul>
+      </div>
+      <div class="shots">
+        <img src="../screenshot-portrait-636x1048-2.png" alt="" />
+        <img src="../screenshot-portrait-636x1048-1.png" alt="" />
+        <img src="../screenshot-portrait-636x1048-3.png" alt="" />
+      </div>
+    </div>
+    <script>
+      Promise.all([...document.images].map((img) => (img.complete ? null : new Promise((r) => (img.onload = img.onerror = r))))).then(() =>
+        document.fonts.ready.then(() => (document.body.dataset.ready = document.fonts.check('48px Jua') ? 'font' : 'fallback')),
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>앱 로고 600×600</title>
+    <style>
+      html, body { margin: 0; }
+      svg { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <script>
+      // ?mode=light | dark — 정사각형, 각진 모서리, 배경 필수 (앱인토스 로고 규정)
+      const dark = new URLSearchParams(location.search).get('mode') === 'dark';
+      const background = dark
+        ? '<radialGradient id="bg" cx="50%" cy="42%" r="72%"><stop offset="0" stop-color="#3D3784"/><stop offset="1" stop-color="#141230"/></radialGradient>'
+        : '<radialGradient id="bg" cx="50%" cy="38%" r="78%"><stop offset="0" stop-color="#FFF6CF"/><stop offset="1" stop-color="#FFC24D"/></radialGradient>';
+      const sparkle = (x, y, r, color) =>
+        `<path d="M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r} Z" fill="${color}"/>`;
+      const glow = dark ? '<circle cx="300" cy="350" r="230" fill="#4FD6A8" opacity=".16"/>' : '<circle cx="300" cy="340" r="240" fill="#fff" opacity=".35"/>';
+      const sparkleColor = dark ? '#FFE48A' : '#FFFFFF';
+      document.body.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+          <defs>${background}</defs>
+          <rect width="600" height="600" fill="url(#bg)"/>
+          ${glow}
+          ${sparkle(110, 150, 26, sparkleColor)}${sparkle(492, 118, 18, sparkleColor)}${sparkle(505, 300, 12, sparkleColor)}${sparkle(88, 330, 12, sparkleColor)}
+          ${Art.slime({ x: 300, y: 512, size: 452, withHelmet: true })}
+        </svg>`;
+      Art.ready(false);
+    </script>
+  </body>
+</html>

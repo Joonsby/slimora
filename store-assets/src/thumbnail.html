@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>썸네일 1932×828</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=block" />
+    <style>
+      html, body { margin: 0; }
+      svg { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <script>
+      // 핵심 플레이 화면(자동 전투)이 보이게, 글자는 서비스명과 한 줄 문구만 (앱인토스 썸네일 규정)
+      const W = 1932, H = 828, GROUND = 650;
+      const stalactites = [[640, 120], [760, 70], [1180, 150], [1330, 90], [1650, 130], [1820, 80]]
+        .map(([x, h]) => `<path d="M${x - 46} 0 L${x} ${h} L${x + 46} 0 Z" fill="#221D44"/>`).join('');
+      const rocks = [[700, 30], [1240, 22], [1880, 34]]
+        .map(([x, r]) => `<ellipse cx="${x}" cy="${GROUND + 6}" rx="${r * 1.6}" ry="${r * 0.7}" fill="#2B2552"/>`).join('');
+      document.body.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F2A5E"/><stop offset="1" stop-color="#1B1838"/></linearGradient>
+            <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3E3770"/><stop offset="1" stop-color="#2A2450"/></linearGradient>
+            <radialGradient id="glowMint"><stop offset="0" stop-color="#4FD6A8" stop-opacity=".35"/><stop offset="1" stop-color="#4FD6A8" stop-opacity="0"/></radialGradient>
+            <radialGradient id="glowFire"><stop offset="0" stop-color="#FF7B39" stop-opacity=".35"/><stop offset="1" stop-color="#FF7B39" stop-opacity="0"/></radialGradient>
+          </defs>
+          <rect width="${W}" height="${H}" fill="url(#sky)"/>
+          ${stalactites}
+          <circle cx="1110" cy="520" r="360" fill="url(#glowMint)"/>
+          <circle cx="1600" cy="520" r="330" fill="url(#glowFire)"/>
+          <rect y="${GROUND}" width="${W}" height="${H - GROUND}" fill="url(#ground)"/>
+          <rect y="${GROUND}" width="${W}" height="5" fill="#fff" opacity=".08"/>
+          ${rocks}
+
+          <g opacity=".45">${Art.golem({ x: 1840, y: GROUND - 30, size: 150 })}</g>
+          <g opacity=".85">${Art.bat({ x: 1240, y: 250, size: 190 })}</g>
+
+          ${Art.slime({ x: 1110, y: GROUND + 8, size: 420 })}
+          ${Art.dragon({ x: 1600, y: GROUND + 8, size: 450 })}
+          ${Art.flame(1545, 478, 60)}${Art.flame(1612, 462, 70)}${Art.flame(1676, 486, 52)}
+
+          ${Art.hpBar(1110, 360, 300, 0.78, '#5FE08A')}
+          ${Art.hpBar(1600, 250, 320, 0.36, '#FF5A5A')}
+          ${Art.damage(1560, 222, '128!', 100, '#FFD84A')}
+          ${Art.damage(1752, 330, '24', 60, '#FF9A3C')}
+          ${Art.damage(1200, 330, '+12', 56, '#7BE495')}
+
+          <text x="118" y="355" font-family="Jua, 'Malgun Gothic', sans-serif" font-size="168" fill="#FFFFFF"
+            stroke="#141022" stroke-width="22" paint-order="stroke" stroke-linejoin="round">슬라임</text>
+          <text x="118" y="535" font-family="Jua, 'Malgun Gothic', sans-serif" font-size="168" fill="#86EECD"
+            stroke="#141022" stroke-width="22" paint-order="stroke" stroke-linejoin="round">용병단</text>
+          <text x="124" y="636" font-family="Jua, 'Malgun Gothic', sans-serif" font-size="46" fill="#E6E1FF">몬스터를 흡수해 강해지는 방치형 RPG</text>
+        </svg>`;
+      Art.ready();
+    </script>
+  </body>
+</html>

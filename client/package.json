@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "sim": "tsx tools/balance-sim.ts"
+    "sim": "tsx tools/balance-sim.ts",
+    "store-assets": "tsx tools/store-assets.ts"
   },
   "dependencies": {
     "phaser": "^3.90.0",

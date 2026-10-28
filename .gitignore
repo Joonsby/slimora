@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# 스토어 이미지 생성 중 쓰는 임시 Chrome 프로필
+store-assets/.chrome-profile/
