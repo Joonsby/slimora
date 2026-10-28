@@ -91,13 +91,13 @@ slime-mercenaries/
 │  │  ├─ core/                    # ★ 순수 게임 규칙
 │  │  │  ├─ model/                # 타입: ids · effects · config · progress · battle · commands
 │  │  │  ├─ battle/               # engine (step · phase 전이) · damage (피해 · 흡혈 · 화상 계산)
-│  │  │  ├─ progression/          # applyCommand (강화 · 스테이지 진행/후퇴 포함) · upgrades · initial
+│  │  │  ├─ progression/          # applyCommand (강화 · 흡수 · 스테이지 진행/후퇴) · absorption (레벨 · 특성) · upgrades · initial
 │  │  │  ├─ stats.ts              # deriveSlimeStats · deriveMonsterStats (효과 합산 · 상한)
 │  │  │  ├─ lookup.ts             # 설정 조회
 │  │  │  ├─ rng.ts                # mulberry32 시드 난수
 │  │  │  └─ result.ts             # Result<T, E>
 │  │  ├─ data/                    # ★ 설정 데이터
-│  │  │  ├─ balance.json  families.json  monsters.json  stages.json  upgrades.json
+│  │  │  ├─ balance.json  families.json  monsters.json  stages.json  upgrades.json  traits.json
 │  │  │  ├─ index.ts              # JSON 을 GameConfig 하나로 묶음
 │  │  │  └─ validate.ts           # 참조 무결성 · 범위 검사 (테스트 · 앱 시작 시 실행)
 │  │  ├─ session/
@@ -108,7 +108,7 @@ slime-mercenaries/
 │  │  ├─ store/gameStore.ts       # zustand/vanilla 스토어
 │  │  ├─ persistence/             # LocalStorageSaveRepository (체크섬 · 백업 칸) · MemorySaveRepository · checksum
 │  │  ├─ platform/WebPlatform.ts  # Date.now · visibilitychange. SDK 단계에서 TossPlatform 추가
-│  │  ├─ game/                    # Phaser: createGame · BattleScene · textures (임시 도형) · DamageTextPool
+│  │  ├─ game/                    # Phaser: createGame · BattleScene · textures (임시 도형) · DamageTextPool · slimeColor (흡수 색)
 │  │  ├─ ui/                      # React: App · Hud · BattleView · BattleLog · BottomMenu · 시트 · battleLogFeed
 │  │  ├─ dev/autoPlay.ts          # 자동 플레이어 (밸런스 점검 · 불변식 테스트)
 │  │  └─ testing/fixtures.ts      # 테스트 픽스처
@@ -116,7 +116,7 @@ slime-mercenaries/
 └─ server/                        # 백엔드 단계에서 생성 (Spring Boot)
 ```
 
-다음 단계에서 생길 것: `core/progression` 의 흡수 · 진화 · 레벨, `core/idle` (오프라인 계산), `data/forms.json` · `traits.json`,
+다음 단계에서 생길 것: `core/progression` 의 진화, `core/idle` (오프라인 계산), `data/forms.json`,
 `dev/` 개발 패널, `test-vectors/` (Java 와 공유할 규칙 사례).
 
 - 테스트는 대상 옆에 `*.test.ts` 로 둔다
@@ -591,8 +591,8 @@ export interface SaveEnvelope {
 }
 // 체크섬은 저장소 구현의 몫이다. LocalStorage 에는 { checksum: FNV-1a(JSON(envelope)), envelope } 로 들어간다
 
-// session/saveData.ts
-export interface SaveDataV1 {
+// session/saveData.ts — 현재 SCHEMA_VERSION 2 (v1 → v2: slime.absorption 추가)
+export interface SaveData {
   installId: string;              // crypto.randomUUID(). 나중에 서버 계정과 연결
   createdAt: number;
   lastActiveAt: number;           // 오프라인 보상 기준
