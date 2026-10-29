@@ -6,13 +6,22 @@ export const TEX = {
   golem: 'tex-golem',
   dragon: 'tex-dragon',
   blob: 'tex-blob',
+  slimeVampire: 'tex-slime-vampire',
+  slimeIron: 'tex-slime-iron',
+  slimeFlame: 'tex-slime-flame',
 } as const;
 
 const PRESET_TEXTURE: Record<string, string> = { bat: TEX.bat, golem: TEX.golem, dragon: TEX.dragon };
+const FORM_TEXTURE: Record<string, string> = { vampire: TEX.slimeVampire, iron: TEX.slimeIron, flame: TEX.slimeFlame };
 
 /** 몬스터 데이터의 visual.preset → 텍스처 키. 모르는 프리셋은 기본 덩어리 */
 export function presetTexture(preset: string): string {
   return PRESET_TEXTURE[preset] ?? TEX.blob;
+}
+
+/** 형태 데이터의 visual.preset → 슬라임 텍스처 키. 없으면 기본 슬라임 */
+export function formTexture(preset: string | undefined): string {
+  return (preset && FORM_TEXTURE[preset]) || TEX.slime;
 }
 
 /**
@@ -30,6 +39,43 @@ export function createPlaceholderTextures(scene: Phaser.Scene): void {
   g.fillStyle(0x1a1a1a).fillCircle(50, 62, 6).fillCircle(76, 62, 6);
   g.fillStyle(0xffffff).fillCircle(52, 60, 2).fillCircle(78, 60, 2);
   g.generateTexture(TEX.slime, 120, 100);
+
+  // 형태 슬라임 120×100 — 같은 몸에 형태 표식을 더한다. 색은 형태 tint
+  const slimeBody = () => {
+    g.fillStyle(0xf0f0f0).fillEllipse(60, 66, 108, 66).fillEllipse(60, 48, 72, 52);
+    g.fillStyle(0xc2c2c2).fillEllipse(60, 88, 94, 18);
+  };
+  const slimeEyes = (glow: number) => {
+    g.fillStyle(0x1a1a1a).fillCircle(50, 62, 6).fillCircle(76, 62, 6);
+    g.fillStyle(glow).fillCircle(52, 60, 2).fillCircle(78, 60, 2);
+  };
+
+  // 흡혈: 작은 날개 · 송곳니
+  g.clear();
+  g.fillStyle(0x9a9a9a).fillTriangle(18, 52, 0, 30, 6, 64).fillTriangle(102, 52, 120, 30, 114, 64);
+  slimeBody();
+  g.fillStyle(0xffffff, 0.6).fillEllipse(40, 40, 22, 12);
+  slimeEyes(0xff4d6d);
+  g.fillStyle(0xffffff).fillTriangle(55, 74, 59, 74, 57, 82).fillTriangle(67, 74, 71, 74, 69, 82);
+  g.generateTexture(TEX.slimeVampire, 120, 100);
+
+  // 철갑: 금속 판 · 리벳
+  g.clear();
+  slimeBody();
+  g.fillStyle(0xd8d8d8).fillRoundedRect(30, 20, 60, 22, 8);
+  g.lineStyle(3, 0x8f8f8f).strokeRoundedRect(30, 20, 60, 22, 8).lineBetween(14, 70, 106, 70);
+  g.fillStyle(0x7a7a7a).fillCircle(38, 31, 3).fillCircle(60, 31, 3).fillCircle(82, 31, 3);
+  g.fillStyle(0xffffff, 0.8).fillRect(36, 46, 30, 4);
+  slimeEyes(0xffffff);
+  g.generateTexture(TEX.slimeIron, 120, 100);
+
+  // 화염: 머리 위 불길
+  g.clear();
+  g.fillStyle(0xdcdcdc).fillTriangle(40, 30, 50, 0, 60, 26).fillTriangle(54, 26, 66, 2, 76, 30).fillTriangle(70, 30, 82, 10, 86, 34);
+  slimeBody();
+  g.fillStyle(0xffffff, 0.7).fillEllipse(40, 44, 22, 12);
+  slimeEyes(0xffe08a);
+  g.generateTexture(TEX.slimeFlame, 120, 100);
 
   // 박쥐 120×84
   g.clear();

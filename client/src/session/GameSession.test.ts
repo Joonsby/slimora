@@ -130,4 +130,23 @@ describe('GameSession', () => {
     expect(second.store.getState().progress).toEqual(saved);
     expect(second.session.view()).toMatchObject({ stageId: saved.stage.current, mode: saved.stage.mode });
   });
+
+  it('진화하면 형태가 바뀌어 전투에 반영되고, 연출 2초 동안 전투가 멈춘다', async () => {
+    const { session, store, events, advance } = setup();
+    await session.start();
+    const p = store.getState().progress;
+    store.setState({ progress: { ...p, slime: { ...p.slime, absorption: { bat: 200, golem: 0, fire: 0 } }, stage: { ...p.stage, highestCleared: 3 } } });
+
+    expect(session.evolve('vampire').ok).toBe(true);
+    expect(store.getState().progress.slime).toMatchObject({ form: 'vampire', unlockedForms: ['vampire'] });
+    expect(session.view()!.slime.stats.lifesteal).toBeGreaterThanOrEqual(0.12);
+    expect(events.some((e) => e.type === 'evolved' && e.form === 'vampire')).toBe(true);
+
+    const frozenAt = session.view()!.now;
+    advance(1900);
+    expect(session.view()!.now).toBe(frozenAt);
+    advance(300);
+    expect(session.view()!.now).toBeGreaterThan(frozenAt);
+    expect(session.evolve('vampire')).toEqual({ ok: false, error: { code: 'ALREADY_CURRENT' } });
+  });
 });

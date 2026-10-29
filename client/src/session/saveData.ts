@@ -5,8 +5,8 @@ import { createInitialProgress } from '../core/progression/initial';
 import type { SaveEnvelope } from './ports';
 import { DEFAULT_SETTINGS, normalizeSettings, type GameSettings } from './settings';
 
-/** v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가 */
-export const SCHEMA_VERSION = 2;
+/** v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가. v2 → v3: 진화 형태(form · unlockedForms) 추가 */
+export const SCHEMA_VERSION = 3;
 
 export interface SaveData {
   installId: string;
@@ -32,6 +32,12 @@ const MIGRATIONS: Record<number, (data: unknown) => unknown> = {
     const slime = d.progress?.slime;
     if (!slime) return data;
     return { ...d, progress: { ...d.progress, slime: { ...slime, absorption: slime.absorption ?? {} } } };
+  },
+  2: (data) => {
+    const d = data as { progress?: { slime?: Record<string, unknown> } };
+    const slime = d.progress?.slime;
+    if (!slime) return data;
+    return { ...d, progress: { ...d.progress, slime: { ...slime, form: slime.form ?? null, unlockedForms: slime.unlockedForms ?? [] } } };
   },
 };
 
@@ -78,6 +84,11 @@ export function normalizeProgress(raw: unknown, cfg: GameConfig): ProgressState 
     base.lifetime.kills[f.id] = nonNegInt(kills[f.id]);
     base.slime.absorption[f.id] = nonNegInt(absorption[f.id]);
   }
+  const formIds = new Set(cfg.forms.map((f) => f.id));
+  const known = (v: unknown): v is string => typeof v === 'string' && formIds.has(v);
+  const unlocked = Array.isArray(slime.unlockedForms) ? slime.unlockedForms.filter(known) : [];
+  base.slime.form = known(slime.form) ? slime.form : null;
+  base.slime.unlockedForms = [...new Set(base.slime.form ? [...unlocked, base.slime.form] : unlocked)];
 
   const last = lastStageId(cfg);
   const highestCleared = Math.min(nonNegInt(stage.highestCleared), last);

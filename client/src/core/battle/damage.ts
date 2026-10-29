@@ -7,10 +7,10 @@ export interface HitResult {
   reducedBy: number;
 }
 
-/** 최종피해 = max(1, floor(공격력 × 치명타배율 × (1 − 피해감소))) */
-export function computeHit(attacker: CombatStats, defender: CombatStats, critRoll: number): HitResult {
+/** 최종피해 = max(1, floor(공격력 × 치명타배율 × 강타배율 × (1 − 피해감소))) */
+export function computeHit(attacker: CombatStats, defender: CombatStats, critRoll: number, heavyMultiplier = 1): HitResult {
   const crit = critRoll < attacker.critChance;
-  const raw = attacker.attack * (crit ? attacker.critMultiplier : 1);
+  const raw = attacker.attack * (crit ? attacker.critMultiplier : 1) * heavyMultiplier;
   const amount = Math.max(1, Math.floor(raw * (1 - defender.damageReduction)));
   return { amount, crit, reducedBy: Math.max(0, Math.floor(raw) - amount) };
 }

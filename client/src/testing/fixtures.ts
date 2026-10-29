@@ -17,6 +17,8 @@ export function stats(overrides: Partial<CombatStats> = {}): CombatStats {
     lifesteal: 0,
     damageReduction: 0,
     burn: null,
+    heavyAttack: null,
+    enrage: null,
     ...overrides,
   };
 }

@@ -34,5 +34,35 @@
     "absorbMul": 1,
     "effects": [{ "kind": "burnOnHit", "chance": 0.5, "dpsRatio": 0.3, "durationMs": 3000, "maxStacks": 3 }],
     "visual": { "preset": "dragon", "tint": "#ff7b39", "scale": 1.0 }
+  },
+  {
+    "id": "giantGolem",
+    "family": "golem",
+    "name": "거대 골렘",
+    "hpMul": 15,
+    "atkMul": 2.0,
+    "attackIntervalMs": 1800,
+    "goldMul": 20,
+    "absorbMul": 20,
+    "effects": [
+      { "kind": "damageReduction", "ratio": 0.4 },
+      { "kind": "heavyAttack", "every": 4, "multiplier": 2.5 }
+    ],
+    "visual": { "preset": "golem", "tint": "#7f6c55", "scale": 1.5 }
+  },
+  {
+    "id": "ancientDragon",
+    "family": "fire",
+    "name": "고대 화염룡",
+    "hpMul": 10,
+    "atkMul": 1.0,
+    "attackIntervalMs": 1200,
+    "goldMul": 30,
+    "absorbMul": 30,
+    "effects": [
+      { "kind": "burnOnHit", "chance": 1, "dpsRatio": 0.08, "durationMs": 4000, "maxStacks": 5 },
+      { "kind": "enrage", "hpBelowRatio": 0.5, "attackIntervalMul": 0.7 }
+    ],
+    "visual": { "preset": "dragon", "tint": "#d8342a", "scale": 1.45 }
   }
 ]

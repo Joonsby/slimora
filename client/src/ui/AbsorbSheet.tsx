@@ -1,4 +1,5 @@
 import { absorptionForLevel, getSlimeLevel, totalAbsorption, traitTier } from '../core/progression/absorption';
+import { anyFormAvailable, findForm } from '../core/progression/forms';
 import { openSheet } from '../store/gameStore';
 import { describeEffects } from './effectText';
 import { formatNumber } from './format';
@@ -9,6 +10,8 @@ export function AbsorbSheet() {
   const { store, config } = useGameContext();
   const open = useGame((s) => s.sheet === 'absorb');
   const absorption = useGame((s) => s.progress.slime.absorption);
+  const form = useGame((s) => s.progress.slime.form);
+  const canEvolve = useGame((s) => anyFormAvailable(s.progress, config));
 
   const level = getSlimeLevel(absorption, config);
   const total = totalAbsorption(absorption);
@@ -52,7 +55,16 @@ export function AbsorbSheet() {
           );
         })}
       </ul>
-      <p className="hint">진화는 다음 업데이트에서 열립니다.</p>
+      <div className="evolve-cta">
+        <span>
+          {form
+            ? `현재 형태 · ${findForm(config, form)?.name ?? form}`
+            : canEvolve
+              ? '진화할 수 있는 형태가 있습니다'
+              : '진화 요건 · 한 계열 흡수 200 + 3 스테이지 클리어'}
+        </span>
+        <button onClick={() => openSheet(store, 'evolve')}>진화하러 가기</button>
+      </div>
     </Sheet>
   );
 }

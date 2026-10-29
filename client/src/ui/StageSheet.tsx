@@ -41,6 +41,7 @@ export function StageSheet() {
                         </span>
                       );
                     })}
+                    {st.boss && <span className="boss-tag">보스 {findMonster(config, st.boss.monster).name}</span>}
                   </span>
                 </span>
                 <span className="stage-action">{status === 'cleared' ? '사냥' : status === 'next' ? '도전' : '잠김'}</span>
@@ -49,7 +50,6 @@ export function StageSheet() {
           );
         })}
       </ul>
-      <p className="hint">7 스테이지(보스)부터는 다음 업데이트에서 열립니다.</p>
     </Sheet>
   );
 }

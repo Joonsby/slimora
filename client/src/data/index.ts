@@ -1,6 +1,7 @@
 import type { GameConfig } from '../core/model/config';
 import balance from './balance.json';
 import families from './families.json';
+import forms from './forms.json';
 import monsters from './monsters.json';
 import stages from './stages.json';
 import traits from './traits.json';
@@ -17,4 +18,5 @@ export const gameConfig = {
   stages,
   upgrades,
   traits,
+  forms,
 } as unknown as GameConfig;

@@ -33,6 +33,9 @@ export function validateConfig(cfg: GameConfig): string[] {
   posInt(stageScaling.absorbStep, 'stageScaling.absorbStep');
   positive(cfg.balance.level?.divisor, 'level.divisor');
   check(typeof cfg.balance.level?.statBonusPerLevel === 'number' && cfg.balance.level.statBonusPerLevel >= 0, 'level.statBonusPerLevel: 0 이상이어야 함');
+  positive(cfg.balance.evolution?.switchCostBase, 'evolution.switchCostBase');
+  check(cfg.balance.evolution?.switchCostGrowth >= 1, 'evolution.switchCostGrowth: 1 이상이어야 함');
+  posInt(cfg.balance.evolution?.pauseMs, 'evolution.pauseMs');
 
   const familyIds = uniqueIds(cfg.families.map((f) => f.id), 'families', errors);
   const monsterIds = uniqueIds(cfg.monsters.map((m) => m.id), 'monsters', errors);
@@ -70,8 +73,28 @@ export function validateConfig(cfg: GameConfig): string[] {
       check(monsterIds.has(sp.monster), `${p}.spawns: 없는 몬스터 '${sp.monster}'`);
       positive(sp.weight, `${p}.spawns.${sp.monster}.weight`);
     }
+    if (s.boss) {
+      check(monsterIds.has(s.boss.monster), `${p}.boss: 없는 몬스터 '${s.boss.monster}'`);
+      posInt(s.boss.timeLimitMs, `${p}.boss.timeLimitMs`);
+    }
   });
   check(cfg.stages.length > 0, 'stages: 비어 있음');
+
+  uniqueIds(cfg.forms.map((f) => f.id), 'forms', errors);
+  for (const f of cfg.forms) {
+    const p = `forms.${f.id}`;
+    check(familyIds.has(f.family), `${p}.family: 없는 계열 '${f.family}'`);
+    positive(f.requires.absorb, `${p}.requires.absorb`);
+    check(cfg.stages.some((s) => s.id === f.requires.stageCleared), `${p}.requires.stageCleared: 없는 스테이지 ${f.requires.stageCleared}`);
+    positive(f.hpMul, `${p}.hpMul`);
+    positive(f.atkMul, `${p}.atkMul`);
+    check(f.mastery.length > 0, `${p}.mastery: 비어 있음`);
+    f.mastery.forEach((m, i) => {
+      positive(m.minAbsorb, `${p}.mastery[${i}].minAbsorb`);
+      if (i > 0) check(m.minAbsorb > f.mastery[i - 1]!.minAbsorb, `${p}.mastery[${i}].minAbsorb: 앞 단계보다 커야 함`);
+      m.effects.forEach((e, j) => validateEffect(e, `${p}.mastery[${i}].effects[${j}]`, errors));
+    });
+  }
 
   uniqueIds(cfg.upgrades.map((u) => u.id), 'upgrades', errors);
   for (const u of cfg.upgrades) {
@@ -103,6 +126,14 @@ function validateEffect(e: EffectSpec, path: string, errors: string[]) {
       if (!(e.dpsRatio > 0)) errors.push(`${path}.dpsRatio: 양수여야 함`);
       if (!(Number.isInteger(e.durationMs) && e.durationMs > 0)) errors.push(`${path}.durationMs: 양의 정수여야 함`);
       if (!(Number.isInteger(e.maxStacks) && e.maxStacks >= 1)) errors.push(`${path}.maxStacks: 1 이상 정수여야 함`);
+      break;
+    case 'heavyAttack':
+      if (!(Number.isInteger(e.every) && e.every >= 2)) errors.push(`${path}.every: 2 이상 정수여야 함`);
+      if (!(e.multiplier > 1)) errors.push(`${path}.multiplier: 1 보다 커야 함`);
+      break;
+    case 'enrage':
+      if (!(e.hpBelowRatio > 0 && e.hpBelowRatio < 1)) errors.push(`${path}.hpBelowRatio: 0~1 사이여야 함`);
+      if (!(e.attackIntervalMul > 0 && e.attackIntervalMul < 1)) errors.push(`${path}.attackIntervalMul: 0~1 사이여야 함`);
       break;
   }
 }

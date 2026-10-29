@@ -1,7 +1,8 @@
 import { lastStageId } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
-import type { UpgradeId } from '../core/model/ids';
+import type { FormId, UpgradeId } from '../core/model/ids';
 import type { ProgressState } from '../core/model/progress';
+import { findForm, formStatus } from '../core/progression/forms';
 import { createInitialProgress } from '../core/progression/initial';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { MemorySaveRepository } from '../persistence/MemorySaveRepository';
@@ -15,6 +16,10 @@ export interface AutoPlayOptions {
   retryAfterMs: number;
   stepMs?: number;
   seed?: number;
+  /** 이 스테이지를 깨면 멈춘다. 기본은 마지막 스테이지 */
+  untilStage?: number;
+  /** 이 형태로 진화할 수 있게 되면 진화한다 */
+  evolveTo?: FormId;
   /** 처음 true 가 된 시각을 watchHitAtMs 로 돌려준다 */
   watch?: (progress: ProgressState) => boolean;
 }
@@ -27,6 +32,7 @@ export interface AutoPlayResult {
   upgrades: Record<UpgradeId, number>;
   absorption: ProgressState['slime']['absorption'];
   watchHitAtMs: number | null;
+  evolvedAtMs: number | null;
   elapsedMs: number;
 }
 
@@ -47,7 +53,9 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
     }
   });
 
-  const last = lastStageId(cfg);
+  const last = opts.untilStage ?? lastStageId(cfg);
+  const target = opts.evolveTo ? findForm(cfg, opts.evolveTo) : undefined;
+  let evolvedAtMs: number | null = null;
   const step = opts.stepMs ?? 100;
   let farmingSince: number | null = null;
   let watchHitAtMs: number | null = null;
@@ -56,6 +64,10 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
     session.tick(step);
     for (let next = cheapestUpgrade(cfg, store.getState().progress); next; next = cheapestUpgrade(cfg, store.getState().progress)) {
       if (!session.purchaseUpgrade(next).ok) break;
+    }
+    if (target && evolvedAtMs === null && !session.inBossFight()) {
+      const p = store.getState().progress;
+      if (formStatus(target, p.slime, p.stage.highestCleared) === 'available' && session.evolve(target.id).ok) evolvedAtMs = clock;
     }
     const progress = store.getState().progress;
     if (watchHitAtMs === null && opts.watch?.(progress)) watchHitAtMs = clock;
@@ -82,6 +94,7 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
     upgrades: p.slime.upgrades,
     absorption: p.slime.absorption,
     watchHitAtMs,
+    evolvedAtMs,
     elapsedMs: clock,
   };
 }

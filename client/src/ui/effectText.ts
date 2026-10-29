@@ -10,7 +10,11 @@ export function describeEffect(e: EffectSpec): string {
     case 'damageReduction':
       return `받는 피해 −${pct(e.ratio)}`;
     case 'burnOnHit':
-      return `공격 시 ${pct(e.chance)} 확률로 화상`;
+      return e.chance >= 1 ? `공격마다 화상 (공격력의 ${pct(e.dpsRatio)}/초, 최대 ${e.maxStacks}중첩)` : `공격 시 ${pct(e.chance)} 확률로 화상`;
+    case 'heavyAttack':
+      return `${e.every}번째 공격마다 강타 ×${e.multiplier}`;
+    case 'enrage':
+      return `HP ${pct(e.hpBelowRatio)} 이하에서 격노`;
   }
 }
 

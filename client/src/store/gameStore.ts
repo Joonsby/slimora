@@ -10,9 +10,11 @@ export interface BattleHud {
   mode: BattleMode;
   kills: number;
   killsToClear: number;
+  /** 보스가 나왔거나 곧 나온다 */
+  boss: boolean;
 }
 
-export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb';
+export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb' | 'evolve';
 export type LogTone = 'normal' | 'good' | 'bad' | 'gold';
 
 export interface LogEntry {
@@ -39,7 +41,7 @@ export function createGameStore(progress: ProgressState): GameStore {
     ready: false,
     progress,
     settings: { ...DEFAULT_SETTINGS },
-    hud: { stageId: progress.stage.current, mode: progress.stage.mode, kills: 0, killsToClear: 0 },
+    hud: { stageId: progress.stage.current, mode: progress.stage.mode, kills: 0, killsToClear: 0, boss: false },
     sheet: 'none',
     log: [],
   }));

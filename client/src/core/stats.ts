@@ -2,8 +2,9 @@ import { findMonster, findStage } from './lookup';
 import type { CombatStats } from './model/battle';
 import type { BalanceConfig, GameConfig } from './model/config';
 import type { EffectSpec } from './model/effects';
-import type { MonsterId, StageId, UpgradeId } from './model/ids';
+import type { FormId, MonsterId, StageId, UpgradeId } from './model/ids';
 import { collectTraitEffects, getSlimeLevel, type Absorption } from './progression/absorption';
+import { collectFormEffects, findForm } from './progression/forms';
 
 /** 강화가 올리는 능력치. 강화 종류를 늘릴 때 여기에 한 줄 추가한다 */
 export const UPGRADE_STAT = {
@@ -30,6 +31,8 @@ export function applyEffects(base: CombatStats, effects: readonly EffectSpec[], 
   let lifesteal = base.lifesteal;
   let damageReduction = base.damageReduction;
   let burn = base.burn;
+  let heavyAttack = base.heavyAttack;
+  let enrage = base.enrage;
   for (const e of effects) {
     switch (e.kind) {
       case 'lifesteal':
@@ -48,6 +51,17 @@ export function applyEffects(base: CombatStats, effects: readonly EffectSpec[], 
             }
           : { chance: Math.min(1, e.chance), dpsRatio: e.dpsRatio, durationMs: e.durationMs, maxStacks: e.maxStacks };
         break;
+      case 'heavyAttack':
+        // 더 자주 · 더 세게 치는 쪽
+        heavyAttack = heavyAttack
+          ? { every: Math.min(heavyAttack.every, e.every), multiplier: Math.max(heavyAttack.multiplier, e.multiplier) }
+          : { every: e.every, multiplier: e.multiplier };
+        break;
+      case 'enrage':
+        enrage = enrage
+          ? { hpBelowRatio: Math.max(enrage.hpBelowRatio, e.hpBelowRatio), attackIntervalMul: Math.min(enrage.attackIntervalMul, e.attackIntervalMul) }
+          : { hpBelowRatio: e.hpBelowRatio, attackIntervalMul: e.attackIntervalMul };
+        break;
     }
   }
   return {
@@ -56,28 +70,36 @@ export function applyEffects(base: CombatStats, effects: readonly EffectSpec[], 
     lifesteal: Math.min(caps.lifesteal, lifesteal),
     damageReduction: Math.min(caps.damageReduction, damageReduction),
     burn,
+    heavyAttack,
+    enrage,
   };
 }
 
-/** 기본값 → 레벨 보너스 → 강화 → 특성 효과(합산 · 상한) 순서 */
-export function deriveSlimeStats(slime: { upgrades: Partial<Record<UpgradeId, number>>; absorption?: Absorption }, cfg: GameConfig): CombatStats {
+/** 기본값 → 레벨 보너스 → 형태 보정 → 강화 → 특성 · 숙련 효과(합산 · 상한) 순서 */
+export function deriveSlimeStats(
+  slime: { upgrades: Partial<Record<UpgradeId, number>>; absorption?: Absorption; form?: FormId | null },
+  cfg: GameConfig,
+): CombatStats {
   const b = cfg.balance.slimeBase;
   const absorption = slime.absorption ?? {};
   const levelBonus = 1 + (getSlimeLevel(absorption, cfg) - 1) * cfg.balance.level.statBonusPerLevel;
+  const form = slime.form ? findForm(cfg, slime.form) : undefined;
   const stats: CombatStats = {
-    maxHp: Math.round(b.maxHp * levelBonus),
-    attack: Math.round(b.attack * levelBonus),
+    maxHp: Math.round(b.maxHp * levelBonus * (form?.hpMul ?? 1)),
+    attack: Math.round(b.attack * levelBonus * (form?.atkMul ?? 1)),
     attackIntervalMs: b.attackIntervalMs,
     critChance: b.critChance,
     critMultiplier: b.critMultiplier,
     lifesteal: 0,
     damageReduction: 0,
     burn: null,
+    heavyAttack: null,
+    enrage: null,
   };
   for (const up of cfg.upgrades) {
     stats[UPGRADE_STAT[up.id]] += up.perLevel * (slime.upgrades[up.id] ?? 0);
   }
-  return applyEffects(stats, collectTraitEffects(absorption, cfg), cfg.balance.caps);
+  return applyEffects(stats, [...collectTraitEffects(absorption, cfg), ...collectFormEffects(slime, cfg)], cfg.balance.caps);
 }
 
 export function sameCombatStats(a: CombatStats, b: CombatStats): boolean {
@@ -89,7 +111,9 @@ export function sameCombatStats(a: CombatStats, b: CombatStats): boolean {
     a.critMultiplier === b.critMultiplier &&
     a.lifesteal === b.lifesteal &&
     a.damageReduction === b.damageReduction &&
-    JSON.stringify(a.burn) === JSON.stringify(b.burn)
+    JSON.stringify(a.burn) === JSON.stringify(b.burn) &&
+    JSON.stringify(a.heavyAttack) === JSON.stringify(b.heavyAttack) &&
+    JSON.stringify(a.enrage) === JSON.stringify(b.enrage)
   );
 }
 
@@ -106,6 +130,8 @@ export function deriveMonsterStats(monsterId: MonsterId, stageId: StageId, cfg: 
       lifesteal: 0,
       damageReduction: 0,
       burn: null,
+      heavyAttack: null,
+      enrage: null,
     },
     m.effects,
     cfg.balance.caps,

@@ -2,6 +2,7 @@ import { AbsorbSheet } from './AbsorbSheet';
 import { BattleLog } from './BattleLog';
 import { BattleView } from './BattleView';
 import { BottomMenu } from './BottomMenu';
+import { EvolveSheet } from './EvolveSheet';
 import { useGame } from './GameContext';
 import { Hud } from './Hud';
 import { StageSheet } from './StageSheet';
@@ -19,6 +20,7 @@ export function App() {
       <UpgradeSheet />
       <StageSheet />
       <AbsorbSheet />
+      <EvolveSheet />
     </div>
   );
 }

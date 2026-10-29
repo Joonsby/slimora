@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { findStage, lastStageId } from '../core/lookup';
 import { getSlimeLevel } from '../core/progression/absorption';
 import { BATTLE_SPEEDS } from '../session/settings';
@@ -38,7 +39,11 @@ export function Hud() {
         </div>
       </div>
       <div className="hud-row">
-        <span className={`chip mode-${hud.mode}`}>{hud.mode === 'challenge' ? `도전 ${hud.kills}/${hud.killsToClear}` : '사냥 중'}</span>
+        {hud.boss ? (
+          <BossTimer />
+        ) : (
+          <span className={`chip mode-${hud.mode}`}>{hud.mode === 'challenge' ? `도전 ${hud.kills}/${hud.killsToClear}` : '사냥 중'}</span>
+        )}
         <button className="chip level" onClick={() => openSheet(store, 'absorb')} aria-label={`슬라임 레벨 ${level}, 흡수 보기`}>
           Lv {level}
         </button>
@@ -52,4 +57,19 @@ export function Hud() {
       </div>
     </header>
   );
+}
+
+/** 보스 남은 시간. 전투 뷰를 0.2초마다 읽는다 (엔진 시각이라 배속을 따른다) */
+function BossTimer() {
+  const { session } = useGameContext();
+  const [left, setLeft] = useState<number | null>(null);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const view = session.view();
+      setLeft(view && view.bossEndsAt !== null ? Math.max(0, view.bossEndsAt - view.now) : null);
+    }, 200);
+    return () => clearInterval(id);
+  }, [session]);
+  const sec = left === null ? 0 : Math.ceil(left / 1000);
+  return <span className="chip mode-boss">{left === null ? '보스 등장' : `보스 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`}</span>;
 }

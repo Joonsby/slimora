@@ -1,3 +1,4 @@
+import { anyFormAvailable } from '../core/progression/forms';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { openSheet } from '../store/gameStore';
 import { useGame, useGameContext } from './GameContext';
@@ -10,6 +11,7 @@ export function BottomMenu() {
       return !isMaxLevel(def, level) && s.progress.gold >= getUpgradeCost(def, level);
     }),
   );
+  const canEvolve = useGame((s) => anyFormAvailable(s.progress, config));
 
   return (
     <nav className="menu">
@@ -18,8 +20,8 @@ export function BottomMenu() {
       </button>
       <button onClick={() => openSheet(store, 'stage')}>사냥터</button>
       <button onClick={() => openSheet(store, 'absorb')}>흡수</button>
-      <button disabled>
-        진화<small>다음 단계</small>
+      <button onClick={() => openSheet(store, 'evolve')}>
+        진화{canEvolve && <span className="dot" aria-label="진화 가능" />}
       </button>
     </nav>
   );

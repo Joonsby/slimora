@@ -1,5 +1,6 @@
 import type { GameConfig } from '../core/model/config';
 import type { UpgradeId } from '../core/model/ids';
+import type { SlimeProgress } from '../core/model/progress';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { deriveSlimeStats, UPGRADE_STAT } from '../core/stats';
 import { openSheet } from '../store/gameStore';
@@ -12,7 +13,8 @@ export function UpgradeSheet() {
   const { session, store, config } = useGameContext();
   const open = useGame((s) => s.sheet === 'upgrade');
   const gold = useGame((s) => s.progress.gold);
-  const levels = useGame((s) => s.progress.slime.upgrades);
+  const slime = useGame((s) => s.progress.slime);
+  const levels = slime.upgrades;
 
   return (
     <Sheet open={open} title="강화" onClose={() => openSheet(store, 'none')}>
@@ -29,8 +31,8 @@ export function UpgradeSheet() {
                   {def.name} <span className="muted">Lv {level}</span>
                 </strong>
                 <span>
-                  {formatStat(def.id, statAt(config, levels, def.id, level))}
-                  {!maxed && <span className="next-value"> → {formatStat(def.id, statAt(config, levels, def.id, level + 1))}</span>}
+                  {formatStat(def.id, statAt(config, slime, def.id, level))}
+                  {!maxed && <span className="next-value"> → {formatStat(def.id, statAt(config, slime, def.id, level + 1))}</span>}
                 </span>
               </div>
               <HoldButton className="buy" disabled={maxed || gold < cost} onFire={() => session.purchaseUpgrade(def.id).ok}>
@@ -44,9 +46,9 @@ export function UpgradeSheet() {
   );
 }
 
-/** 해당 강화만 level 로 바꿨을 때의 능력치 (상한 반영) */
-function statAt(config: GameConfig, levels: Record<UpgradeId, number>, id: UpgradeId, level: number): number {
-  return deriveSlimeStats({ upgrades: { ...levels, [id]: level } }, config)[UPGRADE_STAT[id]];
+/** 해당 강화만 level 로 바꿨을 때의 능력치 (레벨 · 형태 · 상한 반영) */
+function statAt(config: GameConfig, slime: SlimeProgress, id: UpgradeId, level: number): number {
+  return deriveSlimeStats({ ...slime, upgrades: { ...slime.upgrades, [id]: level } }, config)[UPGRADE_STAT[id]];
 }
 
 function formatStat(id: UpgradeId, value: number): string {

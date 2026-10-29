@@ -4,8 +4,8 @@ import { autoPlay } from './autoPlay';
 
 /** 밸런스 불변식 — 수치를 바꾸다 게임이 막히거나 너무 쉬워지면 여기서 걸린다 */
 describe('자동 플레이로 본 진행', () => {
-  it('공격력 강화만으로 마지막 스테이지까지 깰 수 있다 (×1 기준 3~20분)', async () => {
-    const result = await autoPlay(gameConfig, { maxGameMs: 30 * 60_000, retryAfterMs: 30_000, seed: 1 });
+  it('강화만으로 1 장 일반 스테이지(1~6)를 깰 수 있다 (×1 기준 3~20분)', async () => {
+    const result = await autoPlay(gameConfig, { maxGameMs: 30 * 60_000, retryAfterMs: 30_000, seed: 1, untilStage: 6 });
     expect(result.finishedAtMs).not.toBeNull();
     expect(result.finishedAtMs!).toBeGreaterThan(3 * 60_000);
     expect(result.finishedAtMs!).toBeLessThan(20 * 60_000);

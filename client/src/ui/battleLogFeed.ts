@@ -1,4 +1,5 @@
 import { findMonster, findStage } from '../core/lookup';
+import { findForm } from '../core/progression/forms';
 import type { GameConfig } from '../core/model/config';
 import type { GameSession, SessionEvent } from '../session/GameSession';
 import { pushLog, type GameStore, type GameStoreState, type LogEntry } from '../store/gameStore';
@@ -45,8 +46,22 @@ function describe(e: SessionEvent, cfg: GameConfig, state: GameStoreState): Omit
     }
     case 'challengeFailed': {
       const { mode, current } = state.progress.stage;
-      return { text: mode === 'farm' ? `도전 실패 — 스테이지 ${current} 사냥터로 후퇴` : '도전 실패 — 다시 도전', tone: 'bad' };
+      const head = e.reason === 'timeout' ? '시간 초과' : '도전 실패';
+      return { text: mode === 'farm' ? `${head} — 스테이지 ${current} 사냥터로 후퇴` : `${head} — 다시 도전`, tone: 'bad' };
     }
+    case 'monsterSpawned': {
+      if (!e.boss) return null;
+      const limit = findStage(cfg, state.hud.stageId).boss?.timeLimitMs ?? 0;
+      return { text: `${findMonster(cfg, e.defId).name} 등장! 제한시간 ${Math.round(limit / 1000)}초`, tone: 'bad' };
+    }
+    case 'enraged':
+      return e.side === 'monster' ? { text: '보스가 격노했다 — 공격이 빨라진다', tone: 'bad' } : null;
+    case 'formAvailable':
+      return { text: `${findForm(cfg, e.form)?.name ?? e.form}으로 진화할 수 있다`, tone: 'good' };
+    case 'evolved':
+      return { text: `${findForm(cfg, e.form)?.name ?? e.form}으로 진화!`, tone: 'good' };
+    case 'masteryUp':
+      return { text: `${findForm(cfg, e.form)?.name ?? e.form} 숙련 Lv ${e.level}`, tone: 'good' };
     default:
       return null;
   }

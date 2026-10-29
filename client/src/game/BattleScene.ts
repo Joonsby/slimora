@@ -2,10 +2,11 @@ import Phaser from 'phaser';
 import { findMonster, findStage } from '../core/lookup';
 import type { BattleEvent, Side, UnitState } from '../core/model/battle';
 import type { StageId } from '../core/model/ids';
+import { findForm } from '../core/progression/forms';
 import type { GameSession, SessionEvent } from '../session/GameSession';
 import { DamageTextPool, FONT_FAMILY } from './DamageTextPool';
 import { slimeTint } from './slimeColor';
-import { createPlaceholderTextures, presetTexture, TEX } from './textures';
+import { createPlaceholderTextures, formTexture, presetTexture, TEX } from './textures';
 
 interface Layout {
   w: number;
@@ -16,10 +17,18 @@ interface Layout {
   monsterX: number;
 }
 
-const STAGE_COLORS: Record<string, { sky: number; ground: number }> = {
-  bat: { sky: 0x1e1b30, ground: 0x2d2947 },
-  golem: { sky: 0x25221c, ground: 0x3b3529 },
-  fire: { sky: 0x2b1814, ground: 0x47241b },
+/** 장(chapter)마다 같은 계열이라도 배경을 바꾼다 */
+const STAGE_COLORS: Record<number, Record<string, { sky: number; ground: number }>> = {
+  1: {
+    bat: { sky: 0x1e1b30, ground: 0x2d2947 },
+    golem: { sky: 0x25221c, ground: 0x3b3529 },
+    fire: { sky: 0x2b1814, ground: 0x47241b },
+  },
+  2: {
+    bat: { sky: 0x121a2c, ground: 0x1f3046 },
+    golem: { sky: 0x1b221e, ground: 0x2f3a31 },
+    fire: { sky: 0x2a0f0c, ground: 0x561d16 },
+  },
 };
 const DEFAULT_COLORS = { sky: 0x1d2436, ground: 0x2a3350 };
 
@@ -33,6 +42,8 @@ export class BattleScene extends Phaser.Scene {
   private monsterSeq = 0;
   private monsterTint = 0xffffff;
   private slimeColor = 0xffffff;
+  /** 현재 형태의 visual.preset. 기본 슬라임이면 null */
+  private formPreset: string | null = null;
   private ground!: Phaser.GameObjects.Graphics;
   private overlay!: Phaser.GameObjects.Graphics;
   private banner!: Phaser.GameObjects.Text;
@@ -108,11 +119,13 @@ export class BattleScene extends Phaser.Scene {
     this.ground.fillStyle(0xffffff, 0.06).fillRect(0, groundY, w, 3);
   }
 
+  /** 보스 스테이지는 보스 계열, 나머지는 첫 출현 몬스터 계열의 배경 */
   private stageColors() {
     const stage = findStage(this.session.config, this.stageId);
-    const first = stage.spawns[0];
-    const family = first ? findMonster(this.session.config, first.monster).family : '';
-    return STAGE_COLORS[family] ?? DEFAULT_COLORS;
+    const key = stage.boss?.monster ?? stage.spawns[0]?.monster;
+    const family = key ? findMonster(this.session.config, key).family : '';
+    const palette = STAGE_COLORS[stage.chapter] ?? STAGE_COLORS[1]!;
+    return palette[family] ?? DEFAULT_COLORS;
   }
 
   private startIdle(): void {
@@ -151,6 +164,7 @@ export class BattleScene extends Phaser.Scene {
           break;
         case 'monsterSpawned':
           this.showMonster(e.defId, e.seq, true);
+          if (e.boss) this.queueBanner(`${findMonster(this.session.config, e.defId).name} 등장!`, '#ff6b6b');
           break;
         case 'attack':
           this.lunge(e.by);
@@ -161,6 +175,7 @@ export class BattleScene extends Phaser.Scene {
         case 'heal': {
           const p = this.textAnchor(e.to);
           this.texts.show(p.x, p.y, `+${e.amount}`, { color: '#7be495', size: Math.round(17 * this.layout.unit) });
+          if (e.source === 'lifesteal' && e.to === 'slime' && this.formPreset === 'vampire') this.drainParticles();
           break;
         }
         case 'monsterKilled':
@@ -196,7 +211,17 @@ export class BattleScene extends Phaser.Scene {
           this.queueBanner(`스테이지 ${e.stageId} 클리어!`, '#ffd84a');
           break;
         case 'challengeFailed':
+          if (e.reason === 'timeout') this.queueBanner('시간 초과', '#ff6b6b');
           this.queueBanner('도전 실패', '#ff6b6b');
+          break;
+        case 'heavyWarning':
+          if (e.by === 'monster') this.warnHeavy();
+          break;
+        case 'enraged':
+          this.queueBanner('격노!', '#ff6b6b');
+          break;
+        case 'evolved':
+          this.playEvolution(e.form);
           break;
         case 'burnApplied':
           break;
@@ -210,13 +235,79 @@ export class BattleScene extends Phaser.Scene {
     let style = { color: '#ffffff', size: Math.round(20 * u) };
     let text = String(e.amount);
     if (e.source === 'burn') style = { color: '#ff9a3c', size: Math.round(16 * u) };
-    else if (e.to === 'slime') style = { color: '#ff6b6b', size: Math.round(18 * u) };
+    else if (e.heavy) {
+      style = { color: '#ff3b3b', size: Math.round(28 * u) };
+      text = `${e.amount}!!`;
+    } else if (e.to === 'slime') style = { color: '#ff6b6b', size: Math.round(18 * u) };
     else if (e.crit) {
       style = { color: '#ffd84a', size: Math.round(28 * u) };
       text = `${e.amount}!`;
     } else if (e.reducedBy > 0) style = { color: '#c3cede', size: Math.round(19 * u) };
     this.texts.show(p.x, p.y, text, style);
     this.flash(e.to);
+    if (e.to === 'slime' && e.source === 'hit' && e.reducedBy > 0 && this.formPreset === 'iron') this.sparks();
+  }
+
+  /** 흡혈 — 몬스터에서 슬라임으로 흐르는 붉은 입자 */
+  private drainParticles(): void {
+    if (!this.monster) return;
+    const { unit, groundY, slimeX, monsterX } = this.layout;
+    for (let i = 0; i < 4; i++) {
+      const dot = this.add.circle(monsterX, groundY - 40 * unit + (i - 1.5) * 8 * unit, 4 * unit, 0xd6264f).setDepth(15);
+      this.tweens.add({ targets: dot, x: slimeX, y: groundY - 36 * unit, alpha: 0.2, duration: 320, delay: i * 40, ease: 'Quad.easeIn', onComplete: () => dot.destroy() });
+    }
+  }
+
+  /** 철갑 — 피격 시 튀는 불꽃 */
+  private sparks(): void {
+    const { unit, groundY, slimeX } = this.layout;
+    for (let i = 0; i < 5; i++) {
+      const angle = -Math.PI / 2 + (i - 2) * 0.5;
+      const spark = this.add.rectangle(slimeX + 20 * unit, groundY - 50 * unit, 6 * unit, 2 * unit, 0xffe08a).setDepth(15).setRotation(angle);
+      this.tweens.add({
+        targets: spark,
+        x: spark.x + Math.cos(angle) * 30 * unit,
+        y: spark.y + Math.sin(angle) * 30 * unit,
+        alpha: 0,
+        duration: 260,
+        onComplete: () => spark.destroy(),
+      });
+    }
+  }
+
+  /** 강타 예고 — 몬스터 위 붉은 느낌표와 붉은 번쩍임 */
+  private warnHeavy(): void {
+    const sprite = this.monster;
+    if (!sprite) return;
+    const p = this.textAnchor('monster');
+    this.texts.show(p.x, p.y - 16 * this.layout.unit, '강타 준비!', { color: '#ff3b3b', size: Math.round(18 * this.layout.unit) });
+    sprite.setTint(0xff6b6b);
+    this.time.delayedCall(400, () => {
+      if (this.monster === sprite) sprite.setTint(this.monsterTint);
+    });
+  }
+
+  /** 진화 연출 — 흰 빛 · 커졌다 돌아오기 · 퍼지는 고리 */
+  private playEvolution(formId: string): void {
+    const form = findForm(this.session.config, formId);
+    this.refreshSlimeColor();
+    const { unit, groundY, slimeX } = this.layout;
+    this.idleTween?.stop();
+    this.slime.setTintFill(0xffffff).setScale(unit * 1.4);
+    this.tweens.add({
+      targets: this.slime,
+      scaleX: unit,
+      scaleY: unit,
+      duration: 700,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.slime.setTint(this.slimeColor);
+        this.startIdle();
+      },
+    });
+    const ring = this.add.circle(slimeX, groundY - 45 * unit, 30 * unit).setStrokeStyle(4 * unit, Phaser.Display.Color.HexStringToColor(form?.visual.tint ?? '#ffffff').color).setDepth(16);
+    this.tweens.add({ targets: ring, scale: 3, alpha: 0, duration: 900, onComplete: () => ring.destroy() });
+    this.queueBanner(`${form?.name ?? '진화'}!`, '#ffd84a');
   }
 
   private flash(side: Side): void {
@@ -228,10 +319,14 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  /** 진화 전에는 흡수 색으로 물들고, 진화하면 형태 고유 외형으로 바뀐다 */
   private refreshSlimeColor(): void {
     const { config } = this.session;
-    this.slimeColor = slimeTint(this.session.getProgress().slime.absorption, config.families);
-    this.slime.setTint(this.slimeColor);
+    const slime = this.session.getProgress().slime;
+    const form = slime.form ? findForm(config, slime.form) : undefined;
+    this.formPreset = form?.visual.preset ?? null;
+    this.slimeColor = form ? Phaser.Display.Color.HexStringToColor(form.visual.tint).color : slimeTint(slime.absorption, config.families);
+    this.slime.setTexture(formTexture(form?.visual.preset)).setTint(this.slimeColor);
   }
 
   private familyColor(family: string): string {
@@ -328,6 +423,17 @@ export class BattleScene extends Phaser.Scene {
 
     g.fillStyle(0x000000, 0.25).fillEllipse(slimeX, groundY + 2, 84 * unit, 14 * unit);
     if (this.monster) g.fillEllipse(monsterX, groundY + 2, 90 * unit, 16 * unit);
+
+    // 화염 슬라임 — 몸 위에서 일렁이는 불꽃
+    if (this.formPreset === 'flame' && view.slime.hp > 0) {
+      const top = groundY - this.slime.displayHeight * 0.9;
+      for (let i = 0; i < 3; i++) {
+        const fx = slimeX + (i - 1) * 16 * unit;
+        const flicker = 5 * unit * Math.sin(time * 0.015 + i * 2.1);
+        g.fillStyle(0xff7b39, 0.75).fillTriangle(fx - 7 * unit, top, fx + 7 * unit, top, fx, top - 20 * unit - flicker);
+        g.fillStyle(0xffd84a, 0.85).fillTriangle(fx - 3 * unit, top, fx + 3 * unit, top, fx, top - 10 * unit - flicker / 2);
+      }
+    }
 
     this.drawUnitStatus(g, view.slime, slimeX, this.slime.displayHeight, 0x5fe08a, time);
     if (view.monster && this.monster) this.drawUnitStatus(g, view.monster, monsterX, this.monster.displayHeight, 0xff5a5a, time);

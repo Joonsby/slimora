@@ -3,6 +3,7 @@ import type { GameCommand, RuleError } from '../model/commands';
 import type { GameConfig } from '../model/config';
 import type { ProgressState, StageProgress } from '../model/progress';
 import { err, ok, type Result } from '../result';
+import { checkEvolve } from './forms';
 import { getUpgradeCost, isMaxLevel } from './upgrades';
 
 /** 진행 상태의 유일한 변경 경로. 원본을 바꾸지 않고 새 상태를 돌려준다 */
@@ -72,6 +73,13 @@ export function applyCommand(s: ProgressState, c: GameCommand, cfg: GameConfig):
 
     case 'setAutoAdvance':
       return ok(withStage(s, { autoAdvance: c.on }));
+
+    case 'evolve': {
+      const check = checkEvolve(s, c.form, cfg, c.inBossFight);
+      if (!check.ok) return err(check.error);
+      const unlockedForms = s.slime.unlockedForms.includes(c.form) ? s.slime.unlockedForms : [...s.slime.unlockedForms, c.form];
+      return ok({ ...s, gold: s.gold - check.value.cost, slime: { ...s.slime, form: c.form, unlockedForms } });
+    }
   }
 }
 

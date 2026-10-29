@@ -1,5 +1,5 @@
 import type { BattleMode } from './battle';
-import type { FamilyId, StageId, UpgradeId } from './ids';
+import type { FamilyId, FormId, StageId, UpgradeId } from './ids';
 
 /** 저장 대상. 오직 applyCommand 로만 바뀐다 */
 export interface ProgressState {
@@ -13,6 +13,10 @@ export interface SlimeProgress {
   upgrades: Record<UpgradeId, number>;
   /** 계열별 누적 흡수량. 줄어들지 않는다 */
   absorption: Record<FamilyId, number>;
+  /** null = 기본 슬라임 */
+  form: FormId | null;
+  /** 한 번이라도 진화해 본 형태 (현재 형태 포함) */
+  unlockedForms: FormId[];
 }
 
 export interface StageProgress {

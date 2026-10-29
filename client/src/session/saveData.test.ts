@@ -15,7 +15,7 @@ describe('저장 데이터', () => {
     expect(restored).toEqual(data);
   });
 
-  it('v1 저장(흡수 이전)을 v2 로 올려 읽는다 — 진행은 그대로, 흡수는 0', () => {
+  it('v1 저장(흡수 이전)을 최신 형식으로 올려 읽는다 — 진행은 그대로, 흡수는 0 · 기본 슬라임', () => {
     // 2026-10-28 프로토타입이 실제로 남긴 형식. 지우지 말 것
     const v1 = {
       schemaVersion: 1,
@@ -40,7 +40,7 @@ describe('저장 데이터', () => {
       lastActiveAt: 2,
       progress: {
         gold: 16,
-        slime: { upgrades: { attack: 9, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 } },
+        slime: { upgrades: { attack: 9, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 }, form: null, unlockedForms: [] },
         stage: { highestCleared: 1, current: 1, mode: 'farm', autoAdvance: false },
         lifetime: { kills: { bat: 28, golem: 9, fire: 0 }, goldEarned: 166, deaths: 1 },
       },
@@ -68,7 +68,7 @@ describe('저장 데이터', () => {
     const last = cfg.stages.length;
     expect(p).toEqual({
       gold: 0,
-      slime: { upgrades: { attack: 0, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 } },
+      slime: { upgrades: { attack: 0, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 }, form: null, unlockedForms: [] },
       stage: { highestCleared: last, current: last, mode: 'farm', autoAdvance: true },
       lifetime: { kills: { bat: 3, golem: 0, fire: 0 }, goldEarned: 0, deaths: 2 },
     });
@@ -80,6 +80,40 @@ describe('저장 데이터', () => {
 
   it('최대 레벨이 있는 강화는 그 위로 올라가지 않는다', () => {
     expect(normalizeProgress({ slime: { upgrades: { critChance: 999 } } }, cfg).slime.upgrades.critChance).toBe(50);
+  });
+
+  it('v2 저장(진화 이전)을 v3 로 올려 읽는다 — 흡수는 그대로, 기본 슬라임', () => {
+    // 2026-10-29 흡수 · 특성 버전이 남긴 형식. 지우지 말 것
+    const v2 = {
+      schemaVersion: 2,
+      configVersion: '0.3.0',
+      savedAt: 1,
+      data: {
+        installId: 'v2-install',
+        createdAt: 1,
+        lastActiveAt: 2,
+        progress: {
+          gold: 260,
+          slime: { upgrades: { attack: 4, maxHp: 4, critChance: 0 }, absorption: { bat: 30, golem: 25, fire: 10 } },
+          stage: { highestCleared: 3, current: 4, mode: 'challenge', autoAdvance: true },
+          lifetime: { kills: { bat: 30, golem: 25, fire: 10 }, goldEarned: 500, deaths: 0 },
+        },
+        settings: { battleSpeed: 3 },
+      },
+    };
+    expect(restoreSaveData(v2, cfg)?.progress.slime).toEqual({
+      upgrades: { attack: 4, maxHp: 4, critChance: 0 },
+      absorption: { bat: 30, golem: 25, fire: 10 },
+      form: null,
+      unlockedForms: [],
+    });
+  });
+
+  it('모르는 형태는 버리고, 현재 형태는 해금 목록에 넣는다', () => {
+    const slime = normalizeProgress({ slime: { form: 'iron', unlockedForms: ['ghost', 'vampire', 'vampire'] } }, cfg).slime;
+    expect(slime.form).toBe('iron');
+    expect(slime.unlockedForms).toEqual(['vampire', 'iron']);
+    expect(normalizeProgress({ slime: { form: 'ghost' } }, cfg).slime).toMatchObject({ form: null, unlockedForms: [] });
   });
 
   it('클리어하지 않은 스테이지를 사냥 중이라고 적혀 있으면 도전으로 바꾼다', () => {

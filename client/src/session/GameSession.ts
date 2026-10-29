@@ -1,12 +1,13 @@
-import { applySlimeStats, continueAsFarm, createBattle, isFinished, stepBattle } from '../core/battle/engine';
+import { applySlimeStats, continueAsFarm, createBattle, isBossFight, isFinished, stepBattle } from '../core/battle/engine';
 import { lastStageId } from '../core/lookup';
 import type { BattleEvent, BattleMode, BattleState } from '../core/model/battle';
 import type { GameCommand, RuleError } from '../core/model/commands';
 import type { GameConfig } from '../core/model/config';
-import type { StageId, UpgradeId } from '../core/model/ids';
+import type { FormId, StageId, UpgradeId } from '../core/model/ids';
 import type { ProgressState } from '../core/model/progress';
 import { diffGrowth, type GrowthChange } from '../core/progression/absorption';
 import { applyCommand } from '../core/progression/applyCommand';
+import { diffForms, type FormChange } from '../core/progression/forms';
 import type { Result } from '../core/result';
 import { seedFrom } from '../core/rng';
 import { deriveSlimeStats, sameCombatStats } from '../core/stats';
@@ -15,7 +16,12 @@ import type { PlatformAdapter, SaveRepository } from './ports';
 import { newSaveData, restoreSaveData, toEnvelope, type SaveData } from './saveData';
 import type { BattleSpeed } from './settings';
 
-export type SessionEvent = BattleEvent | GrowthChange | { type: 'battleStarted'; at: number; stageId: StageId; mode: BattleMode };
+export type SessionEvent =
+  | BattleEvent
+  | GrowthChange
+  | FormChange
+  | { type: 'battleStarted'; at: number; stageId: StageId; mode: BattleMode }
+  | { type: 'evolved'; at: number; form: FormId };
 export type SessionListener = (events: readonly SessionEvent[]) => void;
 export type StartStatus = 'new' | 'restored' | 'recovered' | 'reset';
 
@@ -41,8 +47,10 @@ export class GameSession {
   private dirty = false;
   private lastSavedAt = 0;
   private unsubscribeVisibility: (() => void) | null = null;
-  /** 다음 emit 에 실어 보낼 레벨 · 특성 변화 */
-  private growth: GrowthChange[] = [];
+  /** 다음 emit 에 실어 보낼 레벨 · 특성 · 형태 변화 */
+  private growth: (GrowthChange | FormChange)[] = [];
+  /** 진화 연출 동안 전투를 멈춘다 (플랫폼 시각) */
+  private pausedUntil = 0;
 
   constructor(private readonly deps: SessionDeps) {
     this.seed = deps.seed ?? Math.floor(Math.random() * 0xffffffff);
@@ -86,7 +94,7 @@ export class GameSession {
   /** Phaser update 에서 매 프레임 호출 */
   tick(frameMs: number): void {
     const battle = this.battle;
-    if (!battle) return;
+    if (!battle || this.deps.platform.now() < this.pausedUntil) return;
     const dt = Math.min(Math.max(frameMs, 0), MAX_FRAME_MS) * this.deps.store.getState().settings.battleSpeed;
     const battleEvents = stepBattle(battle, dt, this.deps.config);
     const after: SessionEvent[] = [];
@@ -124,6 +132,21 @@ export class GameSession {
 
   setAutoAdvance(on: boolean) {
     return this.dispatch({ type: 'setAutoAdvance', on });
+  }
+
+  /** 진화하면 연출 시간만큼 전투를 멈춘다 */
+  evolve(form: FormId) {
+    const result = this.dispatch({ type: 'evolve', form, inBossFight: this.inBossFight() });
+    if (result.ok) {
+      this.pausedUntil = this.deps.platform.now() + this.deps.config.balance.evolution.pauseMs;
+      this.emit([{ type: 'evolved', at: this.battle?.now ?? 0, form }]);
+      void this.saveNow();
+    }
+    return result;
+  }
+
+  inBossFight(): boolean {
+    return this.battle ? isBossFight(this.battle) : false;
   }
 
   setBattleSpeed(battleSpeed: BattleSpeed): void {
@@ -171,6 +194,9 @@ export class GameSession {
       this.deps.store.setState({ progress: result.value });
       this.dirty = true;
       if (result.value.slime !== before.slime) this.onSlimeChanged(before, result.value);
+      if (result.value.slime !== before.slime || result.value.stage.highestCleared !== before.stage.highestCleared) {
+        this.growth.push(...diffForms(before, result.value, this.deps.config));
+      }
     }
     return result;
   }
@@ -185,7 +211,7 @@ export class GameSession {
     if (!sameCombatStats(stats, battle.slime.stats)) applySlimeStats(battle, stats);
   }
 
-  private takeGrowth(): GrowthChange[] {
+  private takeGrowth(): (GrowthChange | FormChange)[] {
     const taken = this.growth;
     this.growth = [];
     return taken;
@@ -193,6 +219,9 @@ export class GameSession {
 
   private handleBattleEvent(e: BattleEvent, after: SessionEvent[]): void {
     switch (e.type) {
+      case 'monsterSpawned':
+        if (e.boss) this.updateHud();
+        break;
       case 'monsterKilled':
         this.apply({ type: 'grantBattleReward', gold: e.gold, kills: { [e.family]: 1 }, absorb: { [e.family]: e.absorb } });
         this.updateHud();
@@ -240,7 +269,7 @@ export class GameSession {
   private updateHud(): void {
     const b = this.battle;
     if (!b) return;
-    this.deps.store.setState({ hud: { stageId: b.stageId, mode: b.mode, kills: b.kills, killsToClear: b.killsToClear } });
+    this.deps.store.setState({ hud: { stageId: b.stageId, mode: b.mode, kills: b.kills, killsToClear: b.killsToClear, boss: isBossFight(b) } });
   }
 
   private emit(events: readonly SessionEvent[]): void {

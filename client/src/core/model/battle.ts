@@ -11,6 +11,8 @@ export interface CombatStats {
   lifesteal: number;
   damageReduction: number;
   burn: BurnSpec | null;
+  heavyAttack: { every: number; multiplier: number } | null;
+  enrage: { hpBelowRatio: number; attackIntervalMul: number } | null;
 }
 
 export interface BurnSpec {
@@ -36,6 +38,9 @@ export interface UnitState {
   hp: number;
   nextAttackAt: number;
   burn: BurnState | null;
+  /** 이번 등장 후 공격 횟수 (강타 주기) */
+  attacks: number;
+  enraged: boolean;
 }
 
 export interface MonsterState extends UnitState {
@@ -44,6 +49,7 @@ export interface MonsterState extends UnitState {
   seq: number;
   gold: number;
   absorb: number;
+  isBoss: boolean;
 }
 
 export interface BattleState {
@@ -58,18 +64,24 @@ export interface BattleState {
   killsToClear: number;
   slime: UnitState;
   monster: MonsterState | null;
+  /** 처치 목표를 채워 다음 등장이 보스 */
+  bossDue: boolean;
+  /** 보스 제한시간이 끝나는 시각. 보스가 없으면 null */
+  bossEndsAt: number | null;
   rng: RngState;
   seq: number;
 }
 
 export type BattleEvent =
-  | { type: 'monsterSpawned'; at: number; defId: MonsterId; seq: number; maxHp: number }
+  | { type: 'monsterSpawned'; at: number; defId: MonsterId; seq: number; maxHp: number; boss: boolean }
   | { type: 'attack'; at: number; by: Side }
-  | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn'; reducedBy: number }
+  | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn'; reducedBy: number; heavy?: boolean }
   | { type: 'heal'; at: number; to: Side; amount: number; source: 'lifesteal' | 'regen' }
   | { type: 'burnApplied'; at: number; to: Side; stacks: number }
+  | { type: 'heavyWarning'; at: number; by: Side }
+  | { type: 'enraged'; at: number; side: Side }
   | { type: 'monsterKilled'; at: number; defId: MonsterId; family: FamilyId; seq: number; gold: number; absorb: number }
   | { type: 'slimeDied'; at: number }
   | { type: 'respawned'; at: number }
   | { type: 'stageCleared'; at: number; stageId: StageId }
-  | { type: 'challengeFailed'; at: number; stageId: StageId };
+  | { type: 'challengeFailed'; at: number; stageId: StageId; reason: 'death' | 'timeout' };

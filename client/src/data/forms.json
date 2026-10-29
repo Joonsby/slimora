@@ -1,0 +1,50 @@
+[
+  {
+    "id": "vampire",
+    "name": "흡혈 슬라임",
+    "family": "bat",
+    "requires": { "absorb": 200, "stageCleared": 3 },
+    "hpMul": 1.0,
+    "atkMul": 1.0,
+    "mastery": [
+      { "minAbsorb": 200, "effects": [{ "kind": "lifesteal", "ratio": 0.12 }] },
+      { "minAbsorb": 1000, "effects": [{ "kind": "lifesteal", "ratio": 0.15 }] },
+      { "minAbsorb": 3000, "effects": [{ "kind": "lifesteal", "ratio": 0.18 }] },
+      { "minAbsorb": 8000, "effects": [{ "kind": "lifesteal", "ratio": 0.21 }] },
+      { "minAbsorb": 20000, "effects": [{ "kind": "lifesteal", "ratio": 0.25 }] }
+    ],
+    "visual": { "preset": "vampire", "tint": "#b3264a" }
+  },
+  {
+    "id": "iron",
+    "name": "철갑 슬라임",
+    "family": "golem",
+    "requires": { "absorb": 200, "stageCleared": 3 },
+    "hpMul": 1.15,
+    "atkMul": 0.95,
+    "mastery": [
+      { "minAbsorb": 200, "effects": [{ "kind": "damageReduction", "ratio": 0.2 }] },
+      { "minAbsorb": 1000, "effects": [{ "kind": "damageReduction", "ratio": 0.25 }] },
+      { "minAbsorb": 3000, "effects": [{ "kind": "damageReduction", "ratio": 0.3 }] },
+      { "minAbsorb": 8000, "effects": [{ "kind": "damageReduction", "ratio": 0.35 }] },
+      { "minAbsorb": 20000, "effects": [{ "kind": "damageReduction", "ratio": 0.4 }] }
+    ],
+    "visual": { "preset": "iron", "tint": "#9aa7b4" }
+  },
+  {
+    "id": "flame",
+    "name": "화염 슬라임",
+    "family": "fire",
+    "requires": { "absorb": 200, "stageCleared": 3 },
+    "hpMul": 1.0,
+    "atkMul": 1.0,
+    "mastery": [
+      { "minAbsorb": 200, "effects": [{ "kind": "burnOnHit", "chance": 1, "dpsRatio": 0.15, "durationMs": 3000, "maxStacks": 3 }] },
+      { "minAbsorb": 1000, "effects": [{ "kind": "burnOnHit", "chance": 1, "dpsRatio": 0.18, "durationMs": 3000, "maxStacks": 3 }] },
+      { "minAbsorb": 3000, "effects": [{ "kind": "burnOnHit", "chance": 1, "dpsRatio": 0.21, "durationMs": 3000, "maxStacks": 4 }] },
+      { "minAbsorb": 8000, "effects": [{ "kind": "burnOnHit", "chance": 1, "dpsRatio": 0.24, "durationMs": 3000, "maxStacks": 4 }] },
+      { "minAbsorb": 20000, "effects": [{ "kind": "burnOnHit", "chance": 1, "dpsRatio": 0.28, "durationMs": 3000, "maxStacks": 5 }] }
+    ],
+    "visual": { "preset": "flame", "tint": "#ff8a2b" }
+  }
+]

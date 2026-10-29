@@ -13,7 +13,7 @@ export interface BattleInit {
   seed: number;
 }
 
-type Action = 'spawn' | 'revive' | 'slimeBurn' | 'monsterBurn' | 'slimeAttack' | 'monsterAttack';
+type Action = 'spawn' | 'revive' | 'slimeBurn' | 'monsterBurn' | 'slimeAttack' | 'monsterAttack' | 'bossTimeout';
 
 /** 한 step 안에서 처리할 행동 수 상한. 넘으면 설정 오류(간격 0 등)다 */
 const MAX_ACTIONS_PER_STEP = 100_000;
@@ -28,8 +28,10 @@ export function createBattle(init: BattleInit, cfg: GameConfig): BattleState {
     phaseUntil: cfg.balance.battle.spawnDelayMs,
     kills: 0,
     killsToClear: stage.killsToClear,
-    slime: { stats: init.slime, hp: init.slime.maxHp, nextAttackAt: 0, burn: null },
+    slime: { stats: init.slime, hp: init.slime.maxHp, nextAttackAt: 0, burn: null, attacks: 0, enraged: false },
     monster: null,
+    bossDue: false,
+    bossEndsAt: null,
     rng: { s: init.seed | 0 },
     seq: 0,
   };
@@ -37,6 +39,11 @@ export function createBattle(init: BattleInit, cfg: GameConfig): BattleState {
 
 export function isFinished(state: BattleState): boolean {
   return state.phase === 'cleared' || state.phase === 'failed';
+}
+
+/** 보스가 나왔거나 곧 나오는 동안. 진화를 막는 데 쓴다 */
+export function isBossFight(state: BattleState): boolean {
+  return !isFinished(state) && (state.bossDue || state.bossEndsAt !== null);
 }
 
 /**
@@ -75,7 +82,7 @@ export function continueAsFarm(state: BattleState, cfg: GameConfig): void {
   state.phaseUntil = state.now + cfg.balance.battle.spawnDelayMs;
 }
 
-/** 같은 시각이면 화상 틱 → 슬라임 공격 → 몬스터 공격 순 */
+/** 같은 시각이면 화상 틱 → 슬라임 공격 → 몬스터 공격 → 보스 시간 초과 순 */
 function nextAction(state: BattleState): { at: number; action: Action } | null {
   switch (state.phase) {
     case 'spawning':
@@ -90,6 +97,7 @@ function nextAction(state: BattleState): { at: number; action: Action } | null {
         [monster.burn?.nextTickAt, 'monsterBurn'],
         [state.slime.nextAttackAt, 'slimeAttack'],
         [monster.nextAttackAt, 'monsterAttack'],
+        [monster.isBoss ? (state.bossEndsAt ?? undefined) : undefined, 'bossTimeout'],
       ];
       let best: { at: number; action: Action } | null = null;
       for (const [at, action] of candidates) {
@@ -123,6 +131,13 @@ function perform(state: BattleState, action: Action, cfg: GameConfig, events: Ba
     case 'monsterAttack':
       attack(state, 'monster', cfg, events);
       break;
+    case 'bossTimeout':
+      state.monster = null;
+      state.slime.burn = null;
+      state.bossEndsAt = null;
+      state.phase = 'failed';
+      events.push({ type: 'challengeFailed', at: state.now, stageId: state.stageId, reason: 'timeout' });
+      break;
   }
 }
 
@@ -134,7 +149,8 @@ function unitOf(state: BattleState, side: Side): UnitState {
 
 function spawnMonster(state: BattleState, cfg: GameConfig, events: BattleEvent[]): void {
   const stage = findStage(cfg, state.stageId);
-  const defId = pickSpawn(stage, nextFloat(state.rng));
+  const boss = state.bossDue && stage.boss ? stage.boss : null;
+  const defId = boss ? boss.monster : pickSpawn(stage, nextFloat(state.rng));
   const def = findMonster(cfg, defId);
   const stats = deriveMonsterStats(defId, state.stageId, cfg);
   const seq = ++state.seq;
@@ -143,15 +159,22 @@ function spawnMonster(state: BattleState, cfg: GameConfig, events: BattleEvent[]
     hp: stats.maxHp,
     nextAttackAt: state.now + stats.attackIntervalMs,
     burn: null,
+    attacks: 0,
+    enraged: false,
     defId,
     family: def.family,
     seq,
     gold: monsterGold(defId, state.stageId, cfg),
     absorb: monsterAbsorb(defId, state.stageId, cfg),
+    isBoss: boss !== null,
   };
+  if (boss) {
+    state.bossDue = false;
+    state.bossEndsAt = state.now + boss.timeLimitMs;
+  }
   state.slime.nextAttackAt = state.now + state.slime.stats.attackIntervalMs;
   state.phase = 'fighting';
-  events.push({ type: 'monsterSpawned', at: state.now, defId, seq, maxHp: stats.maxHp });
+  events.push({ type: 'monsterSpawned', at: state.now, defId, seq, maxHp: stats.maxHp, boss: boss !== null });
 }
 
 function pickSpawn(stage: StageDef, roll: number): MonsterId {
@@ -171,12 +194,16 @@ function attack(state: BattleState, side: Side, cfg: GameConfig, events: BattleE
   const at = state.now;
 
   attacker.nextAttackAt += attacker.stats.attackIntervalMs;
+  attacker.attacks += 1;
+  const heavySpec = attacker.stats.heavyAttack;
+  const heavy = heavySpec !== null && attacker.attacks % heavySpec.every === 0;
   const critRoll = attacker.stats.critChance > 0 ? nextFloat(state.rng) : 1;
-  const hit = computeHit(attacker.stats, defender.stats, critRoll);
+  const hit = computeHit(attacker.stats, defender.stats, critRoll, heavy ? heavySpec.multiplier : 1);
   events.push({ type: 'attack', at, by: side });
 
   defender.hp = Math.max(0, defender.hp - hit.amount);
-  events.push({ type: 'damage', at, to: defSide, amount: hit.amount, crit: hit.crit, source: 'hit', reducedBy: hit.reducedBy });
+  events.push({ type: 'damage', at, to: defSide, amount: hit.amount, crit: hit.crit, source: 'hit', reducedBy: hit.reducedBy, ...(heavy && { heavy }) });
+  checkEnrage(defender, defSide, at, events);
 
   if (attacker.stats.lifesteal > 0) heal(attacker, lifestealAmount(hit.amount, attacker.stats.lifesteal), side, 'lifesteal', at, events);
 
@@ -186,7 +213,20 @@ function attack(state: BattleState, side: Side, cfg: GameConfig, events: BattleE
     events.push({ type: 'burnApplied', at, to: defSide, stacks: defender.burn.stacks });
   }
 
-  if (defender.hp <= 0) onDeath(state, defSide, cfg, events);
+  if (defender.hp <= 0) {
+    onDeath(state, defSide, cfg, events);
+    return;
+  }
+  if (heavySpec && (attacker.attacks + 1) % heavySpec.every === 0) events.push({ type: 'heavyWarning', at, by: side });
+}
+
+/** HP 가 기준 아래로 처음 떨어지면 공격 간격을 줄인다 */
+function checkEnrage(unit: UnitState, side: Side, at: number, events: BattleEvent[]): void {
+  const enrage = unit.stats.enrage;
+  if (!enrage || unit.enraged || unit.hp <= 0 || unit.hp > unit.stats.maxHp * enrage.hpBelowRatio) return;
+  unit.enraged = true;
+  unit.stats = { ...unit.stats, attackIntervalMs: Math.max(1, Math.round(unit.stats.attackIntervalMs * enrage.attackIntervalMul)) };
+  events.push({ type: 'enraged', at, side });
 }
 
 function burnTick(state: BattleState, side: Side, cfg: GameConfig, events: BattleEvent[]): void {
@@ -197,6 +237,7 @@ function burnTick(state: BattleState, side: Side, cfg: GameConfig, events: Battl
   const amount = burnTickDamage(burn, tickMs);
   unit.hp = Math.max(0, unit.hp - amount);
   events.push({ type: 'damage', at: state.now, to: side, amount, crit: false, source: 'burn', reducedBy: 0 });
+  checkEnrage(unit, side, state.now, events);
   burn.nextTickAt += tickMs;
   if (burn.nextTickAt > burn.endsAt) unit.burn = null;
   if (unit.hp <= 0) onDeath(state, side, cfg, events);
@@ -220,7 +261,13 @@ function onDeath(state: BattleState, side: Side, cfg: GameConfig, events: Battle
     // 몬스터가 쓰러지면 그 몬스터가 붙인 화상도 꺼진다
     state.slime.burn = null;
     heal(state.slime, Math.floor(state.slime.stats.maxHp * b.regenOnKillRatio), 'slime', 'regen', at, events);
-    if (state.mode === 'challenge' && state.kills >= state.killsToClear) {
+    if (m.isBoss) state.bossEndsAt = null;
+    const goalMet = state.mode === 'challenge' && state.kills >= state.killsToClear;
+    if (goalMet && !m.isBoss && findStage(cfg, state.stageId).boss) {
+      state.bossDue = true;
+      state.phase = 'spawning';
+      state.phaseUntil = at + b.spawnDelayMs;
+    } else if (goalMet) {
       state.phase = 'cleared';
       events.push({ type: 'stageCleared', at, stageId: state.stageId });
     } else {
@@ -239,7 +286,9 @@ function onDeath(state: BattleState, side: Side, cfg: GameConfig, events: Battle
 function revive(state: BattleState, cfg: GameConfig, events: BattleEvent[]): void {
   if (state.mode === 'challenge') {
     state.phase = 'failed';
-    events.push({ type: 'challengeFailed', at: state.now, stageId: state.stageId });
+    state.bossDue = false;
+    state.bossEndsAt = null;
+    events.push({ type: 'challengeFailed', at: state.now, stageId: state.stageId, reason: 'death' });
     return;
   }
   state.slime.hp = state.slime.stats.maxHp;
