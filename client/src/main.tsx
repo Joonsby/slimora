@@ -6,9 +6,10 @@ import { validateConfig } from './data/validate';
 import { createGame } from './game/createGame';
 import { LocalStorageSaveRepository } from './persistence/LocalStorageSaveRepository';
 import { createMemoryStorage } from './persistence/MemorySaveRepository';
+import { installAndroidBackButton } from './platform/androidBackButton';
 import { safeLocalStorage, WebPlatform } from './platform/WebPlatform';
 import { GameSession } from './session/GameSession';
-import { createGameStore, pushLog } from './store/gameStore';
+import { createGameStore, openSheet, pushLog } from './store/gameStore';
 import { App } from './ui/App';
 import { attachBattleLog } from './ui/battleLogFeed';
 import { GameProvider } from './ui/GameContext';
@@ -25,6 +26,12 @@ if (configErrors.length > 0) {
   const repo = new LocalStorageSaveRepository(safeLocalStorage() ?? createMemoryStorage());
   const session = new GameSession({ config: gameConfig, store, repo, platform: new WebPlatform() });
   attachBattleLog(session, store, gameConfig);
+  // 뒤로가기: 열린 시트가 있으면 닫고, 없으면 앱을 백그라운드로
+  installAndroidBackButton(() => {
+    if (store.getState().sheet === 'none') return false;
+    openSheet(store, 'none');
+    return true;
+  });
 
   const mountBattle = (parent: HTMLElement) => {
     const game = createGame(parent, session);

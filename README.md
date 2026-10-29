@@ -30,10 +30,28 @@ npm run dev -- --host    # 같은 와이파이의 휴대폰에서 접속할 때
 | `npm test` | 단위 테스트 (Vitest, 85개) |
 | `npm run lint` | ESLint — 계층 간 의존 규칙도 여기서 검사한다 |
 | `npm run typecheck` | TypeScript 검사 (앱 · 도구 두 설정) |
-| `npm run build` | 타입 검사 후 `dist/` 로 빌드 |
+| `npm run build` | 타입 검사 후 `dist/` 로 빌드하고, 앱인토스 업로드용 `client/slimora.ait` 까지 만든다 |
+| `npm run deploy` | `.ait` 를 앱인토스에 업로드 (먼저 `npx ait token add` 로 API 키 등록) |
 | `npm run preview` | 빌드 결과를 띄워 본다 (http://localhost:4173) |
 | `npm run sim` | 밸런스 시뮬레이터 — 화면 없이 실제 전투 엔진을 돌려 표로 출력 |
 | `npm run store-assets` | 앱인토스 콘솔용 로고 · 썸네일 · 스크린샷을 `store-assets/` 에 생성 (먼저 `npm run build`, Chrome 필요) |
+
+## 안드로이드 빌드 (원스토어)
+
+같은 웹 빌드를 Capacitor 로 감싸 안드로이드 앱으로 만든다. 설정은 `client/capacitor.config.ts`, 네이티브 프로젝트는 `client/android/` 에 있다.
+**Android Studio** 를 먼저 설치한다 (SDK 와 JDK 21 이 같이 들어온다).
+
+```bash
+npm run build:android    # 타입 검사 → dist/ 빌드 → client/android 로 복사 (.ait 는 만들지 않는다)
+npm run open:android     # Android Studio 로 연다
+```
+
+Android Studio 에서 **Build > Generate Signed App Bundle / APK** 로 서명된 파일을 만든다.
+
+- **키스토어(.jks)와 비밀번호를 잃어버리면 같은 앱으로 업데이트를 낼 수 없다.** 저장소 밖 두 곳 이상에 백업한다
+- `appId`(`com.slimora.game`)는 임시다. 출시 후에는 바꿀 수 없으니 첫 업로드 전에 확정한다 — `capacitor.config.ts` 와 `client/android/app/build.gradle` 의 `applicationId` 를 같이 고친다
+- 원스토어가 APK 와 AAB 중 무엇을 받는지는 원스토어 개발자 콘솔에서 확인한다
+- 업데이트를 낼 때마다 `client/android/app/build.gradle` 의 `versionCode` 를 올린다
 
 ## 조작
 
@@ -72,7 +90,7 @@ npm run dev -- --host    # 같은 와이파이의 휴대폰에서 접속할 때
 | 스테이지 7~15 · 보스 2종 | 보스는 IMPLEMENTATION_PLAN Phase 6. 사냥터 시트에 「다음 업데이트」로 표시 |
 | 진화 | 다음 단계 (5B). 하단 메뉴에 자리만 있다 |
 | 오프라인 보상 | Phase 7. 다만 저장에 `lastActiveAt` 을 이미 기록한다 |
-| 앱인토스 SDK | 미연동. 배포 준비 상태는 [docs/APPS_IN_TOSS.md](docs/APPS_IN_TOSS.md) |
+| 앱인토스 SDK | 3.9.0 설치 · `.ait` 빌드까지 (appName 은 임시 `slimora`). 식별키 · Safe Area 등 SDK 기능은 아직. 배포 준비 상태는 [docs/APPS_IN_TOSS.md](docs/APPS_IN_TOSS.md) |
 
 ## 설정값 조정
 

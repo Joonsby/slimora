@@ -4,14 +4,14 @@
 |---|---|
 | 점검일 | 2026-10-28 |
 | 기준 | 앱인토스 개발자센터 공식 문서 (`https://developers-apps-in-toss.toss.im`, 아래 `D/` 로 줄임) · SDK `@apps-in-toss/web-framework` 3.9.0 |
-| 대상 | `client/` 2026-10-28 프로토타입 (SDK 미연동) |
+| 대상 | `client/` 2026-10-28 프로토타입 (2026-10-29 SDK 3.9.0 설치 · `.ait` 빌드) |
 | 관련 문서 | [ARCHITECTURE.md](ARCHITECTURE.md) 13장 · [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) Phase 9 |
 
 ## 1. 결론 — 지금은 배포할 수 없다
 
 | 막는 것 | 성격 |
 |---|---|
-| SDK 를 붙이지 않아 업로드용 `.ait` 번들을 만들 수 없다 | 개발 |
+| ~~SDK 를 붙이지 않아 업로드용 `.ait` 번들을 만들 수 없다~~ **해결 (2026-10-29)** — appName 은 콘솔 등록 후 맞춘다 | 개발 |
 | 게임 출시 체크리스트의 **사용자 식별키 발급 · 저장**을 하지 않는다 | 개발 |
 | 게임은 **등급분류 증빙**을 반드시 내야 한다 | 사용자 (행정) |
 | 콘솔 앱 등록 · 로고 · 썸네일이 없다 | 사용자 (행정 · 에셋) |
@@ -53,7 +53,7 @@
 
 | 요건 | 근거 | 지금 | 할 일 |
 |---|---|---|---|
-| SDK 3.x 설치 · `npx ait init` · `apps-in-toss.config.ts` (`appName` · `brand.primaryColor` · `webBundleDir: 'dist'`) · 빌드에 `ait build` | D/documentation/integration/sdk-3.x · D/documentation/sdk/v3 | 없음 | 설치 · 설정. **2.x 의 `granite.config.ts` 는 쓰지 않는다** |
+| SDK 3.x 설치 · `npx ait init` · `apps-in-toss.config.ts` (`appName` · `brand.primaryColor` · `webBundleDir: 'dist'`) · 빌드에 `ait build` | D/documentation/integration/sdk-3.x · D/documentation/sdk/v3 | **반영 (2026-10-29)** — 3.9.0, `npm run build` 가 `client/slimora.ait` 생성. appName 은 임시 `slimora`, primaryColor `#0f9f75` | 콘솔에 앱을 등록한 뒤 `apps-in-toss.config.ts` 의 appName 을 같은 이름으로 바꾼다 |
 | 사용자 식별키를 받아 저장해야 게임이 시작된다 — 게임 전용 `getUserKeyForGame` (서버 · 동의 불필요, 앱 재설치 · 기기 변경에도 같은 키) | D/checklist/app-game · D/documentation/common/authentication/hash-key | `installId` 만 있음 | `TossPlatform` 에서 발급 · 저장 |
 | 우측 상단 닫기(X) 버튼과 **게임 버튼이 겹치면 반려**. X 위치: `right + 10`, `top + 5`(iOS) / `top + 10`(Android) | D/documentation/common/screen/safe-area | **겹친다** — HUD 첫 줄 오른쪽에 골드 · 「도전 ▶」 | HUD 우측 상단을 비운다 |
 | Safe Area 침범 금지 (Dynamic Island 포함) | D/checklist/app-game | CSS `env(safe-area-inset-*)` 만 사용 | SDK `SafeArea` 값으로 교체 |
@@ -63,6 +63,10 @@
 | Android 백버튼 → 뒤로가기 또는 종료 | D/checklist/app-game · D/documentation/common/screen/event (`backEvent`) | 처리 없음 | 열린 시트가 있으면 닫기 |
 | 닫기 버튼 · 종료 확인 모달 | D/documentation/common/navigationbar | 없음 | SDK 가 제공 (게임은 종료 확인 모달도 자동). 게임은 `navigationBar.transparentBackground: true` 권장 |
 | SDK API 를 짧은 간격으로 과도하게 호출하지 않는다 | D/checklist/app-game · D/intro/guide | 해당 없음 | 저장을 SDK `Storage` 로 옮길 때 10초 저장 주기를 재검토 |
+
+**Windows 빌드 함정 (2026-10-29 확인)** — `ait build`(CLI 3.9.0)는 Windows 에서 `.ait` 안 경로를 `sources/assets\index.js` 처럼 역슬래시로 담는다.
+기기에서는 역슬래시가 폴더 구분자가 아니라서 `index.html` 이 `assets/` 를 찾지 못한다.
+`npm run build` 마지막 단계의 `client/tools/fix-ait-paths.ts` 가 경로를 `/` 로 고친다. 내용 · deploymentId · 메타데이터는 그대로 두고, 경로가 정상이면 아무것도 하지 않는다.
 
 ### 3-2. 이미 충족
 
@@ -134,7 +138,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서끼리 어긋남 | ① 게임 내비게이션 바 지정: 내비게이션 바 문서는 2.x 방식(`webViewProps.type: 'game'`), 3.x 에서는 `type` 이 없어졌고 공식 샘플에도 없다 — 콘솔 앱 유형으로 정해지는 것으로 보이나 명시 없음 ② 게임 식별 함수: 식별키 문서 · 공식 샘플은 `getUserKeyForGame`, v3 대응표는 `User.getAnonymousKey` — 샘플을 따른다 ③ 검토 기간: 콘솔 가이드 영업일 3~7일 / FAQ 1~2일 |
-| 문서에 없음 | Vite 8 · TypeScript 6 과 SDK 도구 호환성 (공식 샘플은 Vite 6 · TS 5.7) · 토스 앱 삭제나 「미니앱 용량 삭제」 후 localStorage 유지 여부 · 토스 WebView 의 `env(safe-area-inset-*)` 값 · 무음 게임 · 어두운 테마의 심사 통과 여부 · 리더보드 등록 필수 여부 · 비사업자 개인의 GRAC 신청 가능 여부와 수수료 |
+| 문서에 없음 | ~~Vite 8 · TypeScript 6 과 SDK 도구 호환성~~ `ait build` · devtools 모두 동작 확인 (2026-10-29) · 토스 앱 삭제나 「미니앱 용량 삭제」 후 localStorage 유지 여부 · 토스 WebView 의 `env(safe-area-inset-*)` 값 · 무음 게임 · 어두운 테마의 심사 통과 여부 · 리더보드 등록 필수 여부 · 비사업자 개인의 GRAC 신청 가능 여부와 수수료 |
 | 로그인이 필요해 못 본 것 | 콘솔 안의 실제 입력 화면 |
 
 공식 문서는 게임의 개발부터 출시까지 약 2~4주로 안내한다.

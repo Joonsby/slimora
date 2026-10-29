@@ -11,7 +11,7 @@ const forbidLayers = (layers, message) => ({
 });
 
 export default defineConfig(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'android'] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -23,7 +23,7 @@ export default defineConfig(
     ...reactHooks.configs.flat.recommended,
   },
   {
-    files: ['tools/**/*.ts', 'vite.config.ts'],
+    files: ['tools/**/*.ts', 'vite.config.ts', 'apps-in-toss.config.ts', 'capacitor.config.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
   {

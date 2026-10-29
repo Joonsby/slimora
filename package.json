@@ -5,11 +5,14 @@
     "postinstall": "npm --prefix client install",
     "dev": "npm --prefix client run dev --",
     "build": "npm --prefix client run build",
+    "build:android": "npm --prefix client run build:android",
+    "open:android": "npm --prefix client run open:android",
     "preview": "npm --prefix client run preview --",
     "test": "npm --prefix client test",
     "lint": "npm --prefix client run lint",
     "typecheck": "npm --prefix client run typecheck",
     "sim": "npm --prefix client run sim --",
-    "store-assets": "npm --prefix client run store-assets --"
+    "store-assets": "npm --prefix client run store-assets --",
+    "deploy": "npm --prefix client run deploy --"
   }
 }

@@ -5,22 +5,32 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run typecheck && vite build",
+    "build": "npm run typecheck && vite build && ait build && tsx tools/fix-ait-paths.ts",
+    "build:android": "npm run typecheck && vite build && cap sync android",
+    "open:android": "cap open android",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
     "sim": "tsx tools/balance-sim.ts",
-    "store-assets": "tsx tools/store-assets.ts"
+    "store-assets": "tsx tools/store-assets.ts",
+    "deploy": "ait deploy"
   },
   "dependencies": {
+    "@apps-in-toss/web-framework": "^3.9.0",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
     "phaser": "^3.90.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@apps-in-toss/ait-format": "^1.0.0",
+    "@apps-in-toss/devtools": "^3.9.0",
+    "@capacitor/cli": "^8.6.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -36,6 +46,7 @@
     "vitest": "^5.0.5"
   },
   "allowScripts": {
-    "esbuild": true
+    "esbuild": true,
+    "protobufjs": true
   }
 }
