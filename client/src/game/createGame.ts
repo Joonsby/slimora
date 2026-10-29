@@ -11,6 +11,8 @@ export function createGame(parent: HTMLElement, session: GameSession): Phaser.Ga
       mode: Phaser.Scale.RESIZE,
       width: parent.clientWidth || 360,
       height: parent.clientHeight || 320,
+      // 부모 폭이나 높이가 0 이면 WebGL 프레임버퍼 생성이 실패해 게임 루프가 멈춘다
+      min: { width: 1, height: 1 },
     },
     banner: false,
     audio: { noAudio: true },
