@@ -18,11 +18,12 @@
 Node 20 이상이 필요하다 (개발은 Node 24 에서 했다).
 
 ```bash
-cd client
-npm install
+npm install              # client 의존성까지 설치된다
 npm run dev              # http://localhost:5173
 npm run dev -- --host    # 같은 와이파이의 휴대폰에서 접속할 때
 ```
+
+앱은 `client/` 에 있다. 루트 `package.json` 은 명령을 `client` 로 넘기기만 하므로 `cd client` 후 실행해도 같다.
 
 | 명령 | 하는 일 |
 |---|---|
