@@ -3,19 +3,17 @@
  *   npm run build && npm run store-assets
  * 헤드리스 Chrome 이 필요하다 (경로는 CHROME_PATH 로 바꿀 수 있다). 결과는 ../store-assets/*.png
  */
-import { spawn } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { preview } from 'vite';
+import { type Cdp, sleep, withChrome } from './cdp';
 
 const CLIENT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(CLIENT, '../store-assets');
 const SRC = resolve(OUT, 'src');
-const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const DEBUG_PORT = 9334;
 const PREVIEW_PORT = 4174;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** 세로형은 문서 규격(636) 과 요청 규격(686) 을 모두 만든다 — 콘솔이 받는 쪽을 올린다 */
 const PORTRAIT_WIDTHS = [636, 686];
@@ -23,95 +21,9 @@ const PORTRAIT_HEIGHT = 1048;
 
 type Json = Record<string, unknown>;
 
-class Cdp {
-  private seq = 0;
-  private readonly pending = new Map<number, (result: Json) => void>();
-  readonly problems: string[] = [];
-
-  private constructor(private readonly ws: WebSocket) {
-    ws.onmessage = (m) => {
-      const msg = JSON.parse(String(m.data)) as { id?: number; result?: Json; method?: string; params?: Json };
-      if (msg.id && this.pending.has(msg.id)) {
-        this.pending.get(msg.id)!(msg.result ?? {});
-        this.pending.delete(msg.id);
-      } else if (msg.method === 'Runtime.exceptionThrown') {
-        this.problems.push(JSON.stringify(msg.params).slice(0, 300));
-      } else if (msg.method === 'Runtime.consoleAPICalled' && (msg.params as { type?: string }).type === 'error') {
-        this.problems.push(JSON.stringify(msg.params).slice(0, 300));
-      }
-    };
-  }
-
-  static async connect(port: number): Promise<Cdp> {
-    for (let i = 0; i < 50; i++) {
-      try {
-        const targets = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()) as { type: string; webSocketDebuggerUrl: string }[];
-        const page = targets.find((t) => t.type === 'page');
-        if (page) {
-          const ws = new WebSocket(page.webSocketDebuggerUrl);
-          await new Promise((r) => (ws.onopen = r));
-          const cdp = new Cdp(ws);
-          await cdp.send('Runtime.enable');
-          await cdp.send('Page.enable');
-          return cdp;
-        }
-      } catch {
-        // Chrome 이 아직 뜨는 중
-      }
-      await sleep(200);
-    }
-    throw new Error('Chrome DevTools 에 연결하지 못했다');
-  }
-
-  send(method: string, params: Json = {}): Promise<Json> {
-    return new Promise((resolveCall) => {
-      const id = ++this.seq;
-      this.pending.set(id, resolveCall);
-      this.ws.send(JSON.stringify({ id, method, params }));
-    });
-  }
-
-  async evaluate<T>(expression: string): Promise<T> {
-    const r = (await this.send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })) as { result?: { value?: T } };
-    return r.result?.value as T;
-  }
-
-  async open(url: string, width: number, height: number, scale: number): Promise<void> {
-    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: scale, mobile: scale > 1 });
-    await this.send('Page.navigate', { url });
-  }
-
-  async waitFor(expression: string, timeoutMs = 15_000): Promise<void> {
-    const until = Date.now() + timeoutMs;
-    while (Date.now() < until) {
-      if (await this.evaluate<boolean>(expression)) return;
-      await sleep(150);
-    }
-    throw new Error(`기다리다 시간 초과: ${expression}`);
-  }
-
-  async tap(selector: string): Promise<void> {
-    const p = await this.evaluate<{ x: number; y: number } | null>(
-      `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
-    );
-    if (!p) throw new Error(`없는 요소: ${selector}`);
-    await this.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', clickCount: 1 });
-    await this.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', clickCount: 1 });
-  }
-
-  async shot(file: string, expect: { width: number; height: number }): Promise<void> {
-    const { data } = (await this.send('Page.captureScreenshot', { format: 'png' })) as { data: string };
-    const png = Buffer.from(data, 'base64');
-    const width = png.readUInt32BE(16);
-    const height = png.readUInt32BE(20);
-    if (width !== expect.width || height !== expect.height) throw new Error(`${file}: ${width}×${height} (기대 ${expect.width}×${expect.height})`);
-    writeFileSync(resolve(OUT, file), png);
-    console.log(`  ${file}  ${width}×${height}`);
-  }
-
-  close(): void {
-    this.ws.close();
-  }
+async function save(cdp: Cdp, file: string, width: number, height: number): Promise<void> {
+  await cdp.shot(resolve(OUT, file), { width, height });
+  console.log(`  ${file}  ${width}×${height}`);
 }
 
 /** 게임 저장 형식(session/saveData.ts) 그대로. 체크섬은 저장소(persistence/checksum.ts) 와 같은 FNV-1a */
@@ -195,7 +107,7 @@ async function captureGame(cdp: Cdp, baseUrl: string): Promise<void> {
       }
       const overflow = await cdp.evaluate<number>('document.documentElement.scrollWidth - innerWidth');
       if (overflow > 0) throw new Error(`세로 ${width}px: 가로로 ${overflow}px 넘침`);
-      await cdp.shot(`screenshot-portrait-${width}x${PORTRAIT_HEIGHT}-${i + 1}.png`, { width, height: PORTRAIT_HEIGHT });
+      await save(cdp, `screenshot-portrait-${width}x${PORTRAIT_HEIGHT}-${i + 1}.png`, width, PORTRAIT_HEIGHT);
     }
   }
 }
@@ -207,32 +119,24 @@ async function renderPage(cdp: Cdp, page: string, file: string, width: number, h
   const font = await cdp.evaluate<string>('document.body.dataset.ready');
   if (font === 'fallback') console.warn(`  ! ${file}: Jua 글꼴을 못 불러와 대체 글꼴로 그렸다 (네트워크 확인)`);
   await sleep(200);
-  await cdp.shot(file, { width, height });
+  await save(cdp, file, width, height);
 }
 
 async function main(): Promise<void> {
   mkdirSync(OUT, { recursive: true });
-  const profile = resolve(OUT, '.chrome-profile');
   const server = await preview({ root: CLIENT, logLevel: 'warn', preview: { port: PREVIEW_PORT, strictPort: true } });
-  const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${DEBUG_PORT}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', '--no-default-browser-check', 'about:blank'], {
-    stdio: 'ignore',
-  });
   try {
-    const cdp = await Cdp.connect(DEBUG_PORT);
-    console.log('■ 세로형 스크린샷 (실제 게임 화면)');
-    await captureGame(cdp, `http://localhost:${PREVIEW_PORT}/`);
-    console.log('■ 로고 · 썸네일 · 가로형');
-    await renderPage(cdp, 'logo.html', 'logo-light-600.png', 600, 600, '?mode=light');
-    await renderPage(cdp, 'logo.html', 'logo-dark-600.png', 600, 600, '?mode=dark');
-    await renderPage(cdp, 'thumbnail.html', 'thumbnail-1932x828.png', 1932, 828);
-    await renderPage(cdp, 'landscape.html', 'screenshot-landscape-1504x741.png', 1504, 741);
-    if (cdp.problems.length > 0) console.warn('■ 페이지 오류\n' + cdp.problems.join('\n'));
-    cdp.close();
+    await withChrome(resolve(OUT, '.chrome-profile'), DEBUG_PORT, async (cdp) => {
+      console.log('■ 세로형 스크린샷 (실제 게임 화면)');
+      await captureGame(cdp, `http://localhost:${PREVIEW_PORT}/`);
+      console.log('■ 로고 · 썸네일 · 가로형');
+      await renderPage(cdp, 'logo.html', 'logo-light-600.png', 600, 600, '?mode=light');
+      await renderPage(cdp, 'logo.html', 'logo-dark-600.png', 600, 600, '?mode=dark');
+      await renderPage(cdp, 'thumbnail.html', 'thumbnail-1932x828.png', 1932, 828);
+      await renderPage(cdp, 'landscape.html', 'screenshot-landscape-1504x741.png', 1504, 741);
+    });
   } finally {
-    chrome.kill();
     await server.close();
-    await sleep(500);
-    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
   console.log(`완료 → ${OUT}`);
 }

@@ -13,6 +13,7 @@
     "typecheck": "npm --prefix client run typecheck",
     "sim": "npm --prefix client run sim --",
     "store-assets": "npm --prefix client run store-assets --",
+    "android-icons": "npm --prefix client run android-icons",
     "deploy": "npm --prefix client run deploy --"
   }
 }

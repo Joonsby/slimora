@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "sim": "tsx tools/balance-sim.ts",
     "store-assets": "tsx tools/store-assets.ts",
+    "android-icons": "tsx tools/android-icons.ts",
     "deploy": "ait deploy"
   },
   "dependencies": {

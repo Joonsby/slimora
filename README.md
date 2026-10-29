@@ -35,6 +35,7 @@ npm run dev -- --host    # 같은 와이파이의 휴대폰에서 접속할 때
 | `npm run preview` | 빌드 결과를 띄워 본다 (http://localhost:4173) |
 | `npm run sim` | 밸런스 시뮬레이터 — 화면 없이 실제 전투 엔진을 돌려 표로 출력 |
 | `npm run store-assets` | 앱인토스 콘솔용 로고 · 썸네일 · 스크린샷을 `store-assets/` 에 생성 (먼저 `npm run build`, Chrome 필요) |
+| `npm run android-icons` | 안드로이드 런처 아이콘 · 스플래시 PNG 를 `client/android/app/src/main/res/` 에 생성 (Chrome 필요) |
 
 ## 안드로이드 빌드 (원스토어)
 
@@ -49,7 +50,8 @@ npm run open:android     # Android Studio 로 연다
 Android Studio 에서 **Build > Generate Signed App Bundle / APK** 로 서명된 파일을 만든다.
 
 - **키스토어(.jks)와 비밀번호를 잃어버리면 같은 앱으로 업데이트를 낼 수 없다.** 저장소 밖 두 곳 이상에 백업한다
-- `appId`(`com.slimora.game`)는 임시다. 출시 후에는 바꿀 수 없으니 첫 업로드 전에 확정한다 — `capacitor.config.ts` 와 `client/android/app/build.gradle` 의 `applicationId` 를 같이 고친다
+- `appId`(`com.slimora.game`)는 원스토어 신규 앱 등록 때 입력하는 패키지명과 같아야 한다. 등록 후에는 바꿀 수 없다
+- 앱 아이콘 · 스플래시는 `store-assets/src/android-icon.html` 에서 그린다. 고친 뒤 `client` 에서 `npm run android-icons` 로 `res/` 의 PNG 를 다시 만든다 (Chrome 필요)
 - 원스토어가 APK 와 AAB 중 무엇을 받는지는 원스토어 개발자 콘솔에서 확인한다
 - 업데이트를 낼 때마다 `client/android/app/build.gradle` 의 `versionCode` 를 올린다
 

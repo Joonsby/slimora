@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  // 임시 ID. 출시 후에는 바꿀 수 없으니 원스토어 첫 업로드 전에 확정한다
+  // 원스토어 패키지명과 같아야 한다. 등록 후에는 바꿀 수 없다
   appId: 'com.slimora.game',
   appName: '슬라임 용병단',
   webDir: 'dist',

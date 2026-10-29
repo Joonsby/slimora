@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>안드로이드 아이콘 · 스플래시</title>
+    <style>
+      html, body { margin: 0; background: transparent; }
+      svg { display: block; width: 100vw; height: 100vh; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <script>
+      // 적응형 아이콘 격자(108dp) 그대로 그린다. 가운데 72dp 는 앱 로고(logo.html) 와 같은 구도
+      // ?layer=background | foreground  적응형 아이콘 두 층 (108dp)
+      //        square | round            구형 런처 아이콘 (가운데 72dp 를 모서리 둥근 사각 · 원으로)
+      //        splash                    스플래시 원판 (가운데 72dp 를 원으로, 여백 없음)
+      const layer = new URLSearchParams(location.search).get('layer') ?? 'square';
+      const sparkle = (x, y, r) => `<path d="M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r} Z" fill="#fff"/>`;
+      const background = `
+        <defs><radialGradient id="bg" cx="54" cy="45" r="60" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFF6CF"/><stop offset="1" stop-color="#FFC24D"/></radialGradient></defs>
+        <rect width="108" height="108" fill="url(#bg)"/>
+        <circle cx="54" cy="57" r="29" fill="#fff" opacity=".35"/>
+        ${sparkle(30, 34, 3.2)}${sparkle(79, 31, 2.2)}${sparkle(80.5, 52, 1.4)}${sparkle(27, 58, 1.4)}`;
+      // 몸통 폭 56 — 투구 끝 · 그림자 끝까지 지름 66dp 안전 영역 안에 들어간다
+      const foreground = Art.slime({ x: 54, y: 77, size: 56, withHelmet: true });
+      const inner = (clip) => `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72">
+          <defs><clipPath id="c">${clip}</clipPath></defs>
+          <g clip-path="url(#c)">${background}${foreground}</g>
+        </svg>`;
+      // 구형 아이콘은 48dp 중 사방 2dp 를 비운다 (72dp 기준 3)
+      const shapes = {
+        background: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">${background}</svg>`,
+        foreground: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">${foreground}</svg>`,
+        square: inner('<rect x="21" y="21" width="66" height="66" rx="12"/>'),
+        round: inner('<circle cx="54" cy="54" r="33"/>'),
+        splash: inner('<circle cx="54" cy="54" r="36"/>'),
+      };
+      document.body.innerHTML = shapes[layer] ?? '';
+      Art.ready(false);
+    </script>
+  </body>
+</html>
