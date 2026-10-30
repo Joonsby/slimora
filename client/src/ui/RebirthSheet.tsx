@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import type { LegacyDef } from '../core/model/config';
-import { essenceForRebirth, isLegacyMaxed, legacyCost, rankScore } from '../core/progression/prestige';
+import { essenceForRebirth, isLegacyMaxed, legacyCost, legacyMultiplier, rankScore } from '../core/progression/prestige';
 import { openSheet } from '../store/gameStore';
-import { formatNumber } from './format';
+import { formatMultiplier, formatNumber } from './format';
 import { useGame, useGameContext } from './GameContext';
 import { HoldButton } from './HoldButton';
 import { useSlimeLook } from './Hud';
@@ -17,18 +17,18 @@ const ICONS: Record<LegacyDef['stat'], ReactNode> = {
   offlineHours: <IconMoon size={30} />,
 };
 
-/** 효과를 사람이 읽는 말로 — 공격력 +20% · 오프라인 보상 최대 +2시간 */
+/** 효과를 사람이 읽는 말로 — 공격력 ×1.21 · 오프라인 보상 최대 +2시간 */
 function effectAt(def: LegacyDef, level: number): string {
-  const amount = def.perLevel * level;
+  const mul = formatMultiplier(legacyMultiplier(def, level));
   switch (def.stat) {
     case 'attack':
-      return `공격력 +${Math.round(amount * 100)}%`;
+      return `공격력 ${mul}`;
     case 'maxHp':
-      return `최대 HP +${Math.round(amount * 100)}%`;
+      return `최대 HP ${mul}`;
     case 'gold':
-      return `처치 골드 +${Math.round(amount * 100)}%`;
+      return `처치 골드 ${mul}`;
     case 'offlineHours':
-      return `오프라인 보상 +${amount}시간`;
+      return `오프라인 보상 +${def.perLevel * level}시간`;
   }
 }
 

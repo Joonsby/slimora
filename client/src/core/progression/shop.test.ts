@@ -56,7 +56,7 @@ describe('결제 지급', () => {
 
   it('결제 기록은 환생해도 남는다', () => {
     let p = grant(createInitialProgress(cfg), 'ad_pass', 'x');
-    p = { ...p, stage: { ...p.stage, highestCleared: 7 } };
+    p = { ...p, stage: { ...p.stage, highestCleared: cfg.balance.prestige.unlockStage } };
     const r = applyCommand(p, { type: 'rebirth' }, cfg);
     expect(r.ok && hasAdPass(r.value, cfg)).toBe(true);
   });

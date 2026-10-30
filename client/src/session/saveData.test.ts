@@ -65,7 +65,7 @@ describe('저장 데이터', () => {
       {
         gold: -50,
         slime: { upgrades: { attack: 'abc' } },
-        stage: { highestCleared: 99, current: 50, mode: 'farm', autoAdvance: 'yes' },
+        stage: { highestCleared: 999, current: 500, mode: 'farm', autoAdvance: 'yes' },
         lifetime: { kills: { bat: 3.7, ghost: 10 }, goldEarned: Number.NaN, deaths: 2 },
       },
       cfg,
@@ -156,7 +156,7 @@ describe('저장 데이터', () => {
   });
 
   it('영구 강화는 모르는 항목을 버리고 최대 레벨을 넘지 않는다', () => {
-    const p = normalizeProgress({ prestige: { count: 2.5, essence: -3, legacy: { might: 4, dream: 99, ghost: 3 }, bestStage: 99 } }, cfg).prestige;
+    const p = normalizeProgress({ prestige: { count: 2.5, essence: -3, legacy: { might: 4, dream: 99, ghost: 3 }, bestStage: 999 } }, cfg).prestige;
     expect(p).toEqual({ count: 2, essence: 0, legacy: { might: 4, jelly: 0, greed: 0, dream: 4 }, bestStage: cfg.stages.length });
   });
 

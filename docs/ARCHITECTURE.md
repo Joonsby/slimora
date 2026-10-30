@@ -97,7 +97,8 @@ slime-mercenaries/
 │  │  │  ├─ rng.ts                # mulberry32 시드 난수
 │  │  │  └─ result.ts             # Result<T, E>
 │  │  ├─ data/                    # ★ 설정 데이터
-│  │  │  ├─ balance.json  families.json  monsters.json  stages.json  upgrades.json  traits.json
+│  │  │  ├─ balance.json  families.json  monsters.json  chapters.json  upgrades.json  traits.json
+│  │  │  ├─ chapters.ts           # 장 20개 → 스테이지 200개로 편다
 │  │  │  ├─ index.ts              # JSON 을 GameConfig 하나로 묶음
 │  │  │  └─ validate.ts           # 참조 무결성 · 범위 검사 (테스트 · 앱 시작 시 실행)
 │  │  ├─ session/

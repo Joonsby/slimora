@@ -118,6 +118,150 @@ const SCENES: Record<string, SceneSpec> = {
     template: 'volcano', seed: 151, sky: ['#160504', '#4a0f0a'], far: '#2e0b08', mid: '#1f0705', near: '#0c0302', glow: '#ff3b1f',
     ground: ['#3a1610', '#220c08', '#0c0403'], groundKind: 'basalt', props: ['stalactites', 'bones', 'eggs'], ambient: { kind: 'embers', color: '#ff8a4d', count: 30 },
   },
+  frostCave: {
+    template: 'cave', seed: 175, sky: ['#0a1a2a', '#1f4a6e'], far: '#173a58', mid: '#102a42', near: '#06121e', glow: '#7fd8ff', accent: '#bff0ff',
+    ground: ['#9cc4dc', '#5a809a', '#1e3242'], groundKind: 'rock', props: ['crystals', 'fog'], ambient: { kind: 'motes', color: '#e8f8ff', count: 20 },
+  },
+  frostHollow: {
+    template: 'cave', seed: 187, sky: ['#06101f', '#163a5e'], far: '#12304e', mid: '#0b2038', near: '#040b16', glow: '#5fb8ff', accent: '#9fe0ff',
+    ground: ['#7fa8c4', '#46677f', '#162634'], groundKind: 'rock', props: ['crystals', 'hangingBats', 'bones'], ambient: { kind: 'motes', color: '#cfefff', count: 16 },
+  },
+  snowField: {
+    template: 'outdoor', seed: 199, sky: ['#5a7a9a', '#d6e6f2'], far: '#9fb6c8', mid: '#7e98ac', near: '#3e5466', glow: '#ffffff',
+    ground: ['#f2f7fb', '#c8d6e2', '#7f93a4'], groundKind: 'sand', props: ['pines', 'fog'], ambient: { kind: 'ash', color: '#ffffff', count: 30 },
+  },
+  glacierPass: {
+    template: 'outdoor', seed: 211, sky: ['#2a3f5a', '#9cc0dc'], far: '#6f90ac', mid: '#4f6f8a', near: '#24384a', glow: '#dff4ff',
+    ground: ['#e4eef6', '#a9bccc', '#5a6f80'], groundKind: 'sand', props: ['cliffs', 'pines', 'fog'], ambient: { kind: 'ash', color: '#ffffff', count: 40 },
+  },
+  mireSwamp: {
+    template: 'outdoor', seed: 223, sky: ['#1a2418', '#4d6a3a'], far: '#33472c', mid: '#26361f', near: '#121a0e', glow: '#c8f07a',
+    ground: ['#4a5a2a', '#2f3a1c', '#141a0c'], groundKind: 'grass', props: ['deadTrees', 'roots', 'fog'], ambient: { kind: 'fireflies', color: '#d8ff6a', count: 18 },
+  },
+  bogHollow: {
+    template: 'outdoor', seed: 235, sky: ['#101a14', '#2f4a36'], far: '#22362a', mid: '#18281e', near: '#0a120d', glow: '#8fe07a',
+    ground: ['#3a4a2a', '#24301a', '#0e140a'], groundKind: 'rock', props: ['deadTrees', 'roots', 'bones', 'fog'], ambient: { kind: 'fireflies', color: '#b8ff8a', count: 14 },
+  },
+  rotWood: {
+    template: 'outdoor', seed: 247, sky: ['#1a1222', '#4a3a52'], far: '#3a2e44', mid: '#2a2132', near: '#130e18', glow: '#d0a8ff',
+    ground: ['#4a4232', '#2e2a20', '#14120e'], groundKind: 'grass', props: ['deadTrees', 'roots', 'fog'], ambient: { kind: 'motes', color: '#e0c8ff', count: 14 },
+  },
+  thornHeart: {
+    template: 'outdoor', seed: 259, sky: ['#140c18', '#3a2440'], far: '#2e1d36', mid: '#211528', near: '#0e0812', glow: '#ff7ad8', accent: '#ff9ae0',
+    ground: ['#3e3242', '#26202a', '#100c12'], groundKind: 'rock', props: ['roots', 'crystals', 'deadTrees', 'fog'], ambient: { kind: 'fireflies', color: '#ff9ae0', count: 14 },
+  },
+  duneSea: {
+    template: 'outdoor', seed: 271, sky: ['#e0a050', '#ffe0a0'], far: '#d49a5a', mid: '#b87a40', near: '#7a4a22', glow: '#fff2c0',
+    ground: ['#f0c880', '#c89850', '#7a5428'], groundKind: 'sand', props: ['cliffs', 'bones'], ambient: { kind: 'motes', color: '#fff0c8', count: 12 },
+  },
+  desertRuins: {
+    template: 'ruins', seed: 283, sky: ['#5a3a1e', '#d49a50'], far: '#8a5e32', mid: '#a87a44', near: '#3a2410', glow: '#ffd27a', accent: '#ffd27a',
+    ground: ['#d8aa66', '#a07640', '#4a3018'], groundKind: 'sand', props: ['pillars', 'statues'], ambient: { kind: 'motes', color: '#ffe8b8', count: 12 },
+  },
+  sunTemple: {
+    template: 'ruins', seed: 295, sky: ['#3a2008', '#a8661a'], far: '#6a4012', mid: '#c8962e', near: '#2a1606', glow: '#ffd23a', accent: '#ffe27a',
+    ground: ['#e0b84a', '#a8822a', '#4a3410'], groundKind: 'tiles', props: ['pillars', 'torches', 'runes'], ambient: { kind: 'embers', color: '#ffe08a', count: 16 },
+  },
+  sunAltar: {
+    template: 'ruins', seed: 307, sky: ['#4a1e06', '#d0701a'], far: '#7a3a10', mid: '#d8a03a', near: '#301204', glow: '#ffb02a', accent: '#fff07a',
+    ground: ['#e8c060', '#b0862e', '#523a12'], groundKind: 'tiles', props: ['statues', 'runes', 'torches'], ambient: { kind: 'embers', color: '#ffd06a', count: 22 },
+  },
+  crystalMine: {
+    template: 'cave', seed: 319, sky: ['#1a0e26', '#4a2a5e'], far: '#3a2050', mid: '#2a163a', near: '#120a1a', glow: '#ff8ad8', accent: '#ffa8f0',
+    ground: ['#5a4270', '#3a2a4a', '#1a1222'], groundKind: 'rock', props: ['crystals', 'bones'], ambient: { kind: 'motes', color: '#ffd0f4', count: 18 },
+  },
+  geodeHall: {
+    template: 'cave', seed: 331, sky: ['#0a1e22', '#1e4a52'], far: '#173c44', mid: '#102c32', near: '#06141a', glow: '#5ff0e0', accent: '#9ffff0',
+    ground: ['#3e6a6a', '#264444', '#0e1e1e'], groundKind: 'rock', props: ['crystals', 'fog'], ambient: { kind: 'motes', color: '#c8fff8', count: 18 },
+  },
+  prismCave: {
+    template: 'cave', seed: 343, sky: ['#100a2a', '#3a2a7a'], far: '#2a2060', mid: '#1e1648', near: '#0a0820', glow: '#8ab4ff', accent: '#ff9af0',
+    ground: ['#5a5a9a', '#38386a', '#16162e'], groundKind: 'rock', props: ['crystals', 'fog'], ambient: { kind: 'fireflies', color: '#ffffff', count: 16 },
+  },
+  crystalCore: {
+    template: 'ruins', seed: 355, sky: ['#0a1430', '#24406e'], far: '#1a2e52', mid: '#28467a', near: '#060c1e', glow: '#6ae8ff', accent: '#a8f4ff',
+    ground: ['#5a7aa8', '#36507a', '#121e34'], groundKind: 'tiles', props: ['runes', 'pillars'], ambient: { kind: 'motes', color: '#d0f6ff', count: 18 },
+  },
+  sunkenTemple: {
+    template: 'ruins', seed: 367, sky: ['#041a1e', '#0e4a50'], far: '#0e3a40', mid: '#1e5a5e', near: '#021014', glow: '#4af0d8', accent: '#6affe8',
+    ground: ['#2e6a62', '#1c4842', '#0a1e1c'], groundKind: 'tiles', props: ['pillars', 'statues', 'fog'], ambient: { kind: 'motes', color: '#a8fff0', count: 16 },
+  },
+  tideShrine: {
+    template: 'ruins', seed: 379, sky: ['#040e24', '#0e2e5a'], far: '#0e2648', mid: '#1a3e6e', near: '#020818', glow: '#3ac8ff', accent: '#7ae0ff',
+    ground: ['#2a4e7a', '#1a3254', '#0a1426'], groundKind: 'tiles', props: ['runes', 'pillars', 'fog'], ambient: { kind: 'motes', color: '#b8ecff', count: 18 },
+  },
+  coralRuins: {
+    template: 'outdoor', seed: 391, sky: ['#0a2a3a', '#2a8a9a'], far: '#1e6a78', mid: '#155260', near: '#082a32', glow: '#ff9ac0', accent: '#ff8ab0',
+    ground: ['#e8b49a', '#b07a66', '#4a2e28'], groundKind: 'sand', props: ['crystals', 'boulders', 'roots'], ambient: { kind: 'fireflies', color: '#a8fff8', count: 16 },
+  },
+  abyssReef: {
+    template: 'cave', seed: 403, sky: ['#020a18', '#0a2444'], far: '#0a1e3a', mid: '#06142a', near: '#020812', glow: '#3a8aff', accent: '#5affe0',
+    ground: ['#22385a', '#14243a', '#060c18'], groundKind: 'rock', props: ['crystals', 'fog'], ambient: { kind: 'fireflies', color: '#5affe0', count: 14 },
+  },
+  obsidianField: {
+    template: 'volcano', seed: 415, sky: ['#0e0814', '#3a1a2a'], far: '#2a1424', mid: '#1a0c18', near: '#08040a', glow: '#ff4a6a',
+    ground: ['#2a2232', '#1a1420', '#08060c'], groundKind: 'basalt', props: ['cliffs', 'volcano'], ambient: { kind: 'embers', color: '#ff8a9a', count: 24 },
+  },
+  magmaRiver: {
+    template: 'volcano', seed: 427, sky: ['#2a0804', '#c03a0a'], far: '#5a1608', mid: '#3a0c06', near: '#180402', glow: '#ff7a0a',
+    ground: ['#4a2010', '#2e120a', '#120604'], groundKind: 'basalt', props: ['cliffs', 'bones'], ambient: { kind: 'embers', color: '#ffc04a', count: 40 },
+  },
+  ashCity: {
+    template: 'ruins', seed: 439, sky: ['#1e1c1e', '#5a5250'], far: '#3a3636', mid: '#4a4444', near: '#121010', glow: '#ff8a5a', accent: '#ff9a6a',
+    ground: ['#5a5450', '#3a3634', '#161414'], groundKind: 'tiles', props: ['pillars', 'statues'], ambient: { kind: 'ash', color: '#d0c8c4', count: 30 },
+  },
+  emberThrone: {
+    template: 'ruins', seed: 451, sky: ['#1a0604', '#5a160a'], far: '#3a0e08', mid: '#6a2414', near: '#0e0302', glow: '#ff5a1a', accent: '#ff8a3a',
+    ground: ['#5a2a1a', '#3a1a10', '#140806'], groundKind: 'tiles', props: ['torches', 'pillars', 'runes'], ambient: { kind: 'embers', color: '#ff9a4a', count: 28 },
+  },
+  ghostGrave: {
+    template: 'outdoor', seed: 463, sky: ['#0a1020', '#2a3a5a'], far: '#1e2a44', mid: '#162034', near: '#080c16', glow: '#a8c8ff',
+    ground: ['#3a4a52', '#262f36', '#0e1216'], groundKind: 'rock', props: ['moon', 'tombs', 'deadTrees', 'fog'], ambient: { kind: 'fireflies', color: '#c8e0ff', count: 16 },
+  },
+  boneCrypt: {
+    template: 'ruins', seed: 475, sky: ['#0e0c10', '#2e2830'], far: '#262028', mid: '#3a3238', near: '#08060a', glow: '#9affc8', accent: '#9affc8',
+    ground: ['#4a4446', '#2e2a2c', '#100e10'], groundKind: 'tiles', props: ['torches', 'statues', 'bones', 'fog'], ambient: { kind: 'motes', color: '#c8ffe0', count: 14 },
+  },
+  bloodCastle: {
+    template: 'ruins', seed: 487, sky: ['#14040a', '#4a0e1e'], far: '#2e0a14', mid: '#5a1a28', near: '#0a0206', glow: '#ff3a5a', accent: '#ff5a7a',
+    ground: ['#4a2a32', '#2e1a20', '#10080c'], groundKind: 'tiles', props: ['pillars', 'torches', 'statues'], ambient: { kind: 'motes', color: '#ff9ab0', count: 14 },
+  },
+  crimsonBridge: {
+    template: 'outdoor', seed: 499, sky: ['#1a0408', '#5a1020'], far: '#3a0c16', mid: '#2a0810', near: '#100206', glow: '#ff4a4a',
+    ground: ['#3a2a2e', '#241a1e', '#0c080a'], groundKind: 'rock', props: ['moon', 'deadTrees', 'fog'], ambient: { kind: 'fireflies', color: '#ff7a8a', count: 12 },
+  },
+  stormPlateau: {
+    template: 'outdoor', seed: 511, sky: ['#0e1420', '#3a4a62'], far: '#2a3648', mid: '#1e2838', near: '#0c1018', glow: '#a8c0ff',
+    ground: ['#4a5a4a', '#2e3a30', '#121812'], groundKind: 'grass', props: ['cliffs', 'pines'], ambient: { kind: 'ash', color: '#c8d8ff', count: 36 },
+  },
+  thunderPeak: {
+    template: 'outdoor', seed: 523, sky: ['#140e28', '#4a3a7a'], far: '#2e2452', mid: '#211a3c', near: '#0c0818', glow: '#ffe84a',
+    ground: ['#4a4660', '#2e2c3e', '#121018'], groundKind: 'rock', props: ['cliffs', 'boulders'], ambient: { kind: 'motes', color: '#fff27a', count: 20 },
+  },
+  skyCitadel: {
+    template: 'ruins', seed: 535, sky: ['#3a7ac8', '#c8e8ff'], far: '#8ab4e0', mid: '#d8e4f0', near: '#4a6a8a', glow: '#ffffff', accent: '#ffe8a8',
+    ground: ['#f0f4f8', '#c0ccd8', '#6a7a8a'], groundKind: 'tiles', props: ['pillars', 'statues', 'fog'], ambient: { kind: 'motes', color: '#ffffff', count: 18 },
+  },
+  cloudAltar: {
+    template: 'ruins', seed: 547, sky: ['#c06a3a', '#ffd8a0'], far: '#d8946a', mid: '#f0d8b8', near: '#6a3a22', glow: '#fff0c0', accent: '#ffd23a',
+    ground: ['#f4e4cc', '#c8ac88', '#6a5038'], groundKind: 'tiles', props: ['runes', 'pillars', 'fog'], ambient: { kind: 'motes', color: '#fff4d8', count: 18 },
+  },
+  abyssGate: {
+    template: 'ruins', seed: 559, sky: ['#06020e', '#1e0a3a'], far: '#14082a', mid: '#2a1450', near: '#030108', glow: '#a04aff', accent: '#c87aff',
+    ground: ['#2e2442', '#1c162a', '#08060e'], groundKind: 'tiles', props: ['runes', 'pillars', 'fog'], ambient: { kind: 'motes', color: '#d0a8ff', count: 20 },
+  },
+  voidPath: {
+    template: 'cave', seed: 571, sky: ['#04020c', '#160a30'], far: '#100828', mid: '#0a051a', near: '#020108', glow: '#7a3aff', accent: '#ff4ad8',
+    ground: ['#241c3a', '#161026', '#06040c'], groundKind: 'rock', props: ['crystals', 'fog'], ambient: { kind: 'motes', color: '#b88aff', count: 22 },
+  },
+  primalNest: {
+    template: 'volcano', seed: 583, sky: ['#1e0410', '#7a0a2a'], far: '#3e0818', mid: '#2a0410', near: '#120206', glow: '#ff2a6a',
+    ground: ['#4a1a26', '#2e0e18', '#120408'], groundKind: 'basalt', props: ['volcano', 'eggs', 'bones'], ambient: { kind: 'embers', color: '#ff7aa0', count: 30 },
+  },
+  originCore: {
+    template: 'volcano', seed: 595, sky: ['#2a1a04', '#c8902a'], far: '#6a4a12', mid: '#4a320a', near: '#1e1404', glow: '#ffe27a',
+    ground: ['#5a4a2a', '#3a2e1a', '#16120a'], groundKind: 'basalt', props: ['stalactites', 'eggs', 'cliffs'], ambient: { kind: 'embers', color: '#fff0a0', count: 34 },
+  },
 };
 
 export const SCENE_KEYS = Object.keys(SCENES);

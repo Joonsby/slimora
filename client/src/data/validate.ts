@@ -69,10 +69,12 @@ export function validateConfig(cfg: GameConfig): string[] {
     });
   }
 
+  const chapterIds = new Set(cfg.chapters.map((c) => c.id));
+  check(chapterIds.size === cfg.chapters.length, 'chapters: 중복 id');
   cfg.stages.forEach((s, i) => {
     const p = `stages[${i}]`;
     check(s.id === i + 1, `${p}.id: 1부터 빈틈없이 이어져야 함 (${s.id})`);
-    posInt(s.chapter, `${p}.chapter`);
+    check(chapterIds.has(s.chapter), `${p}.chapter: 없는 장 ${s.chapter}`);
     check(typeof s.scene === 'string' && s.scene.length > 0, `${p}.scene: 비어 있음`);
     posInt(s.killsToClear, `${p}.killsToClear`);
     check(s.spawns.length > 0, `${p}.spawns: 비어 있음`);

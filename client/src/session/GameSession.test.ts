@@ -48,7 +48,7 @@ describe('GameSession', () => {
   it('처치하면 스토어의 골드 · 처치 수 · HUD 가 갱신된다', async () => {
     const { session, store, advance } = setup();
     await session.start();
-    advance(5000);
+    advance(10_000);
     const s = store.getState();
     expect(s.progress.gold).toBeGreaterThan(0);
     expect(s.progress.lifetime.kills.bat).toBeGreaterThan(0);
@@ -61,7 +61,7 @@ describe('GameSession', () => {
     expect(session.purchaseUpgrade('attack')).toMatchObject({ ok: false, error: { code: 'NOT_ENOUGH_GOLD' } });
     session.dispatch({ type: 'grantBattleReward', gold: 100, kills: {} });
     expect(session.purchaseUpgrade('attack').ok).toBe(true);
-    expect(session.view()?.slime.stats.attack).toBe(15);
+    expect(session.view()?.slime.stats.attack).toBe(14); // round(12 + 1.5)
   });
 
   it('최대 HP 를 강화하면 전투 중 HP 비율을 유지한 채 늘어난다', async () => {
@@ -71,13 +71,13 @@ describe('GameSession', () => {
     const view = session.view()!;
     (view.slime as { hp: number }).hp = 60; // 120 중 절반
     expect(session.purchaseUpgrade('maxHp').ok).toBe(true);
-    expect(session.view()?.slime).toMatchObject({ hp: 73, stats: { maxHp: 145 } });
+    expect(session.view()?.slime).toMatchObject({ hp: 68, stats: { maxHp: 135 } });
   });
 
   it('처치하면 흡수가 쌓이고, 특성 단계가 오르면 진행 중인 전투에 바로 적용된다', async () => {
     const { session, store, events, advance } = setup();
     await session.start();
-    advance(5000);
+    advance(10_000);
     expect(store.getState().progress.slime.absorption.bat).toBeGreaterThan(0);
     expect(session.view()?.slime.stats.lifesteal).toBe(0);
 
@@ -88,9 +88,10 @@ describe('GameSession', () => {
   });
 
   it('클리어하면 다음 스테이지 전투를 새로 연다', async () => {
-    const { session, store, events, advance } = setup();
+    const next = { id: 2, chapter: 1, name: '다음', scene: 'duskCave', spawns: [{ monster: 'dummy', weight: 1 }], killsToClear: 3, overrides: { hp: 10, atk: 1, goldPerKill: 1 } };
+    const { session, store, events, advance } = setup(arena({ killsToClear: 3, hp: 10, atk: 1, extraStages: [next] }));
     await session.start();
-    advance(60_000);
+    advance(10_000);
     expect(store.getState().progress.stage.highestCleared).toBeGreaterThanOrEqual(1);
     expect(events.find((e) => e.type === 'battleStarted')).toMatchObject({ stageId: 2, mode: 'challenge' });
   });

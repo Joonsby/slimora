@@ -1,6 +1,6 @@
 import { findMonster, findStage } from './lookup';
 import type { CombatStats } from './model/battle';
-import type { BalanceConfig, GameConfig } from './model/config';
+import type { BalanceConfig, GameConfig, UpgradeDef } from './model/config';
 import type { EffectSpec } from './model/effects';
 import type { FormId, MonsterId, StageId, UpgradeId } from './model/ids';
 import { collectTraitEffects, getSlimeLevel, type Absorption } from './progression/absorption';
@@ -21,6 +21,11 @@ export const UPGRADE_STAT = {
   maxHp: 'maxHp',
   critChance: 'critChance',
 } as const satisfies Record<UpgradeId, keyof CombatStats>;
+
+/** 강화 돌파로 곱해지는 배율. 돌파가 없으면 1 */
+export function milestoneMultiplier(def: UpgradeDef, level: number): number {
+  return def.milestone ? def.milestone.multiplier ** Math.floor(level / def.milestone.every) : 1;
+}
 
 /** 스테이지 기준 수치. overrides 가 있으면 공식 대신 쓴다 */
 export function stageBase(cfg: GameConfig, stageId: StageId): { hp: number; atk: number; goldPerKill: number; absorbPerKill: number } {
@@ -107,7 +112,9 @@ export function deriveSlimeStats(
     enrage: null,
   };
   for (const up of cfg.upgrades) {
-    stats[UPGRADE_STAT[up.id]] += up.perLevel * (slime.upgrades[up.id] ?? 0);
+    const level = slime.upgrades[up.id] ?? 0;
+    stats[UPGRADE_STAT[up.id]] += up.perLevel * level;
+    stats[UPGRADE_STAT[up.id]] *= milestoneMultiplier(up, level);
   }
   stats.attack = Math.round(stats.attack * bonus.attack);
   stats.maxHp = Math.round(stats.maxHp * bonus.maxHp);

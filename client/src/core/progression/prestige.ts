@@ -5,7 +5,7 @@ import type { PrestigeProgress, ProgressState } from '../model/progress';
 import { err, ok, type Result } from '../result';
 import { createInitialProgress } from './initial';
 
-/** 영구 강화가 주는 것. attack · maxHp · gold 는 곱하는 배율, offlineMs 는 오프라인 보상 상한에 더하는 시간 */
+/** 영구 강화가 주는 것. attack · maxHp · gold 는 곱하는 배율(레벨마다 ×(1+perLevel) 복리), offlineMs 는 오프라인 보상 상한에 더하는 시간 */
 export interface LegacyBonus {
   attack: number;
   maxHp: number;
@@ -27,12 +27,17 @@ export function isLegacyMaxed(def: LegacyDef, level: number): boolean {
   return def.maxLevel !== null && level >= def.maxLevel;
 }
 
+/** 공격력 · 최대 HP · 골드 정수 강화의 배율 — 레벨마다 ×(1 + perLevel) */
+export function legacyMultiplier(def: LegacyDef, level: number): number {
+  return (1 + def.perLevel) ** level;
+}
+
 export function legacyBonus(prestige: Pick<PrestigeProgress, 'legacy'> | undefined, cfg: GameConfig): LegacyBonus {
   const bonus = { ...NO_LEGACY };
   for (const def of cfg.legacy) {
-    const amount = def.perLevel * (prestige?.legacy[def.id] ?? 0);
-    if (def.stat === 'offlineHours') bonus.offlineMs += amount * 3_600_000;
-    else bonus[def.stat] += amount;
+    const level = prestige?.legacy[def.id] ?? 0;
+    if (def.stat === 'offlineHours') bonus.offlineMs += def.perLevel * level * 3_600_000;
+    else bonus[def.stat] *= legacyMultiplier(def, level);
   }
   return bonus;
 }

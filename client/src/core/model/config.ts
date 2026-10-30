@@ -6,6 +6,8 @@ export interface GameConfig {
   balance: BalanceConfig;
   families: FamilyDef[];
   monsters: MonsterDef[];
+  /** 장 이름 (사냥터 목록 · HUD). 스테이지의 chapter 가 가리킨다 */
+  chapters: ChapterDef[];
   stages: StageDef[];
   upgrades: UpgradeDef[];
   traits: TraitDef[];
@@ -87,6 +89,11 @@ export interface MonsterDef {
   visual: { preset: string; tint: string; scale: number };
 }
 
+export interface ChapterDef {
+  id: number;
+  name: string;
+}
+
 export interface StageDef {
   id: StageId;
   chapter: number;
@@ -118,6 +125,8 @@ export interface UpgradeDef {
   maxLevel: number | null;
   /** cost(lv) = floor(base × growth^lv) */
   cost: { base: number; growth: number };
+  /** 돌파 — every 레벨마다 그 능력치 전체에 multiplier 를 곱한다 */
+  milestone?: { every: number; multiplier: number };
 }
 
 /** 계열 흡수량이 문턱을 넘으면 그 단계의 효과가 적용된다 (단계끼리 더하지 않고 가장 높은 단계 하나) */

@@ -27,11 +27,12 @@ const run = (p: ProgressState, c: Parameters<typeof applyCommand>[1]) => {
 };
 
 describe('환생', () => {
-  it('스테이지 7 을 깨야 할 수 있고, 깊이 갈수록 정수를 더 받는다', () => {
-    expect(applyCommand(played(6), { type: 'rebirth' }, cfg)).toEqual({ ok: false, error: { code: 'REBIRTH_LOCKED', need: 7 } });
-    expect(essenceForRebirth(played(7), cfg)).toBe(3);
-    expect(essenceForRebirth(played(10), cfg)).toBe(Math.floor(3 * 1.3 ** 3));
-    expect(essenceForRebirth(played(15), cfg)).toBeGreaterThan(essenceForRebirth(played(10), cfg));
+  it('1장 보스(스테이지 10)를 깨야 할 수 있고, 깊이 갈수록 정수를 더 받는다', () => {
+    const { essenceBase, essenceGrowth } = cfg.balance.prestige;
+    expect(applyCommand(played(9), { type: 'rebirth' }, cfg)).toEqual({ ok: false, error: { code: 'REBIRTH_LOCKED', need: 10 } });
+    expect(essenceForRebirth(played(10), cfg)).toBe(essenceBase);
+    expect(essenceForRebirth(played(13), cfg)).toBe(Math.floor(essenceBase * essenceGrowth ** 3));
+    expect(essenceForRebirth(played(20), cfg)).toBeGreaterThan(essenceForRebirth(played(13), cfg));
   });
 
   it('골드 · 강화 · 흡수 · 스테이지는 처음으로, 형태 · 누적 기록 · 정수는 남는다', () => {
@@ -63,18 +64,21 @@ describe('환생', () => {
     expect(rankScore({ ...after, stage: { ...after.stage, highestCleared: 15 } })).toBe(115);
   });
 
-  it('영구 강화가 공격력 · HP · 처치 골드 · 오프라인 상한을 올린다', () => {
+  it('영구 강화가 공격력 · HP · 처치 골드 · 오프라인 상한을 올린다 — 배율은 레벨마다 곱한다', () => {
     const bonus = legacyBonus({ legacy: { might: 2, jelly: 1, greed: 2, dream: 3 } }, cfg);
-    expect(bonus).toEqual({ attack: 1.2, maxHp: 1.1, gold: 1.3, offlineMs: 3 * 3_600_000 });
+    expect(bonus.attack).toBeCloseTo(1.1 * 1.1);
+    expect(bonus.maxHp).toBeCloseTo(1.1);
+    expect(bonus.gold).toBeCloseTo(1.1 * 1.1);
+    expect(bonus.offlineMs).toBe(3 * 3_600_000);
     const plain = deriveSlimeStats({ upgrades: { attack: 10 } }, cfg);
     const strong = deriveSlimeStats({ upgrades: { attack: 10 } }, cfg, bonus);
-    expect(strong.attack).toBe(Math.round(plain.attack * 1.2));
-    expect(strong.maxHp).toBe(Math.round(plain.maxHp * 1.1));
+    expect(strong.attack).toBe(Math.round(plain.attack * bonus.attack));
+    expect(strong.maxHp).toBe(Math.round(plain.maxHp * bonus.maxHp));
 
     const gold = (goldMul: number) => {
       const b = createBattle({ stageId: 1, mode: 'farm', slime: deriveSlimeStats({ upgrades: { attack: 50 } }, cfg), seed: 1, goldMul }, cfg);
       return stepBattle(b, 30_000, cfg).filter((e) => e.type === 'monsterKilled').reduce((sum, e) => sum + (e.type === 'monsterKilled' ? e.gold : 0), 0);
     };
-    expect(gold(1.3)).toBeGreaterThan(gold(1));
+    expect(gold(bonus.gold)).toBeGreaterThan(gold(1));
   });
 });

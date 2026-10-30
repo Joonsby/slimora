@@ -20,9 +20,9 @@ export function slimeBonus(p: Pick<ProgressState, 'prestige' | 'mercenaries'>, c
   const legacy = legacyBonus(p.prestige, cfg);
   const party = partyPassive(p.mercenaries, cfg);
   return {
-    attack: legacy.attack + party.attack,
-    maxHp: legacy.maxHp + party.maxHp,
-    gold: legacy.gold + party.gold,
+    attack: legacy.attack * (1 + party.attack),
+    maxHp: legacy.maxHp * (1 + party.maxHp),
+    gold: legacy.gold * (1 + party.gold),
     offlineMs: legacy.offlineMs,
     critChance: party.critChance,
     damageReduction: party.damageReduction,

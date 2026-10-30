@@ -1,0 +1,362 @@
+[
+  {
+    "id": 1,
+    "name": "어스름 동굴",
+    "pool": ["bat", "golem", "fireDragon"],
+    "boss": { "monster": "giantGolem", "timeLimitMs": 45000 },
+    "stages": [
+      { "name": "어스름 동굴", "scene": "duskCave" },
+      { "name": "이끼 바위길", "scene": "mossyPath" },
+      { "name": "그을린 둥지", "scene": "scorchedNest" },
+      { "name": "박쥐 떼 굴", "scene": "batNest" },
+      { "name": "무너진 채석장", "scene": "quarry" },
+      { "name": "용암 협곡", "scene": "lavaCanyon" },
+      { "name": "갈림길 동굴", "scene": "duskCave" },
+      { "name": "버려진 갱도", "scene": "quarry" },
+      { "name": "골렘 문지기 길", "scene": "golemHall" },
+      { "name": "거대 골렘의 방", "scene": "golemHall" }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "메아리 골짜기",
+    "pool": ["bat", "golem", "fireDragon"],
+    "boss": { "monster": "ancientDragon", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "메아리 동굴", "scene": "echoCave" },
+      { "name": "고대 석상 회랑", "scene": "statueHall" },
+      { "name": "잿빛 화산길", "scene": "ashVolcano" },
+      { "name": "달그림자 숲", "scene": "moonForest" },
+      { "name": "거인의 무덤", "scene": "giantTomb" },
+      { "name": "불꽃 분화구", "scene": "flameCrater" },
+      { "name": "뒤엉킨 경계", "scene": "tangledBorder" },
+      { "name": "잠든 용의 길", "scene": "ashVolcano" },
+      { "name": "용암 폭포", "scene": "flameCrater" },
+      { "name": "고대 화염룡의 둥지", "scene": "dragonNest" }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "서리 동굴",
+    "pool": ["frostBat", "iceGolem", "blueDrake"],
+    "boss": { "monster": "frostQueen", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "얼어붙은 입구", "scene": "frostCave" },
+      { "name": "고드름 회랑", "scene": "frostCave" },
+      { "name": "서리 박쥐 둥지", "scene": "frostCave" },
+      { "name": "푸른 얼음굴", "scene": "frostCave" },
+      { "name": "빙결 호수", "scene": "frostCave" },
+      { "name": "눈꽃 수정밭", "scene": "frostHollow" },
+      { "name": "얼음 미로", "scene": "frostHollow" },
+      { "name": "시린 바람길", "scene": "frostHollow" },
+      { "name": "빙벽 아래", "scene": "frostHollow" },
+      { "name": "여왕의 얼음 궁", "scene": "frostHollow" }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "눈보라 설원",
+    "pool": ["frostBat", "iceGolem", "blueDrake"],
+    "boss": { "monster": "glacierGiant", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "하얀 들판", "scene": "snowField" },
+      { "name": "눈 덮인 숲", "scene": "snowField" },
+      { "name": "발자국 언덕", "scene": "snowField" },
+      { "name": "얼음 개울", "scene": "snowField" },
+      { "name": "눈보라 고개", "scene": "snowField" },
+      { "name": "빙하 협곡", "scene": "glacierPass" },
+      { "name": "눈사태 비탈", "scene": "glacierPass" },
+      { "name": "얼어붙은 폭포", "scene": "glacierPass" },
+      { "name": "거인의 발자국", "scene": "glacierPass" },
+      { "name": "빙하 거인의 계곡", "scene": "glacierPass" }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "독안개 늪",
+    "pool": ["venomBat", "mossGolem", "bogDrake"],
+    "boss": { "monster": "swampWyrm", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "안개 낀 늪가", "scene": "mireSwamp" },
+      { "name": "썩은 통나무 다리", "scene": "mireSwamp" },
+      { "name": "거품 웅덩이", "scene": "mireSwamp" },
+      { "name": "독초 군락", "scene": "mireSwamp" },
+      { "name": "가라앉은 오두막", "scene": "mireSwamp" },
+      { "name": "진흙 수렁", "scene": "bogHollow" },
+      { "name": "반딧불 습지", "scene": "bogHollow" },
+      { "name": "뿌리 엉킨 물길", "scene": "bogHollow" },
+      { "name": "검은 늪 한가운데", "scene": "bogHollow" },
+      { "name": "늪의 고룡 소굴", "scene": "bogHollow" }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "썩은 숲",
+    "pool": ["venomBat", "mossGolem", "bogDrake"],
+    "boss": { "monster": "rotQueen", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "시든 숲길", "scene": "rotWood" },
+      { "name": "버섯 그늘", "scene": "rotWood" },
+      { "name": "부러진 고목", "scene": "rotWood" },
+      { "name": "가시 덤불", "scene": "rotWood" },
+      { "name": "거미줄 골짜기", "scene": "rotWood" },
+      { "name": "가시 미궁", "scene": "thornHeart" },
+      { "name": "시든 샘", "scene": "thornHeart" },
+      { "name": "어둠 뿌리길", "scene": "thornHeart" },
+      { "name": "숲의 심장 앞", "scene": "thornHeart" },
+      { "name": "썩은 숲의 둥지", "scene": "thornHeart" }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "황금 사막",
+    "pool": ["sandBat", "sandGolem", "sunWyvern"],
+    "boss": { "monster": "desertColossus", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "모래 언덕", "scene": "duneSea" },
+      { "name": "뼈의 길", "scene": "duneSea" },
+      { "name": "신기루 오아시스", "scene": "duneSea" },
+      { "name": "모래 폭풍", "scene": "duneSea" },
+      { "name": "사막 협곡", "scene": "duneSea" },
+      { "name": "반쯤 묻힌 기둥", "scene": "desertRuins" },
+      { "name": "모래 신전 입구", "scene": "desertRuins" },
+      { "name": "전갈 회랑", "scene": "desertRuins" },
+      { "name": "왕의 무덤길", "scene": "desertRuins" },
+      { "name": "거상의 모래 광장", "scene": "desertRuins" }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "태양 신전",
+    "pool": ["sandBat", "sandGolem", "sunWyvern"],
+    "boss": { "monster": "sunDragon", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "황금 계단", "scene": "sunTemple" },
+      { "name": "햇살 회랑", "scene": "sunTemple" },
+      { "name": "불꽃 제단", "scene": "sunTemple" },
+      { "name": "수호상의 방", "scene": "sunTemple" },
+      { "name": "빛의 우물", "scene": "sunTemple" },
+      { "name": "태양 문양 홀", "scene": "sunAltar" },
+      { "name": "타오르는 기둥", "scene": "sunAltar" },
+      { "name": "제사장의 길", "scene": "sunAltar" },
+      { "name": "태양 제단", "scene": "sunAltar" },
+      { "name": "태양룡의 옥좌", "scene": "sunAltar" }
+    ]
+  },
+  {
+    "id": 9,
+    "name": "수정 광맥",
+    "pool": ["crystalBat", "crystalGolem", "gemDragon"],
+    "boss": { "monster": "crystalLord", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "광부의 입구", "scene": "crystalMine" },
+      { "name": "반짝이는 갱도", "scene": "crystalMine" },
+      { "name": "자수정 굴", "scene": "crystalMine" },
+      { "name": "무너진 비계", "scene": "crystalMine" },
+      { "name": "수정 지하수", "scene": "crystalMine" },
+      { "name": "정동 동굴", "scene": "geodeHall" },
+      { "name": "빛나는 틈새", "scene": "geodeHall" },
+      { "name": "수정 숲", "scene": "geodeHall" },
+      { "name": "광맥의 끝", "scene": "geodeHall" },
+      { "name": "수정 군주의 둥지", "scene": "geodeHall" }
+    ]
+  },
+  {
+    "id": 10,
+    "name": "빛의 동굴",
+    "pool": ["crystalBat", "crystalGolem", "gemDragon"],
+    "boss": { "monster": "crystalTitan", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "무지개 굴", "scene": "prismCave" },
+      { "name": "프리즘 호수", "scene": "prismCave" },
+      { "name": "빛살 회랑", "scene": "prismCave" },
+      { "name": "거울 수정밭", "scene": "prismCave" },
+      { "name": "반사의 방", "scene": "prismCave" },
+      { "name": "수정 심장 입구", "scene": "crystalCore" },
+      { "name": "빛의 문양 홀", "scene": "crystalCore" },
+      { "name": "공명하는 기둥", "scene": "crystalCore" },
+      { "name": "수정핵 앞마당", "scene": "crystalCore" },
+      { "name": "수정 거신의 핵", "scene": "crystalCore" }
+    ]
+  },
+  {
+    "id": 11,
+    "name": "가라앉은 신전",
+    "pool": ["deepBat", "coralGolem", "mistDrake"],
+    "boss": { "monster": "tideDragon", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "물에 잠긴 계단", "scene": "sunkenTemple" },
+      { "name": "이끼 낀 석상", "scene": "sunkenTemple" },
+      { "name": "물방울 회랑", "scene": "sunkenTemple" },
+      { "name": "해초 기둥", "scene": "sunkenTemple" },
+      { "name": "잠긴 도서관", "scene": "sunkenTemple" },
+      { "name": "조수의 제단", "scene": "tideShrine" },
+      { "name": "푸른 문양 방", "scene": "tideShrine" },
+      { "name": "소용돌이 회랑", "scene": "tideShrine" },
+      { "name": "심해의 문", "scene": "tideShrine" },
+      { "name": "해저 화산룡의 사원", "scene": "tideShrine" }
+    ]
+  },
+  {
+    "id": 12,
+    "name": "산호 폐허",
+    "pool": ["deepBat", "coralGolem", "mistDrake"],
+    "boss": { "monster": "abyssBatKing", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "산호 정원", "scene": "coralRuins" },
+      { "name": "조개 언덕", "scene": "coralRuins" },
+      { "name": "분홍 산호길", "scene": "coralRuins" },
+      { "name": "난파선 잔해", "scene": "coralRuins" },
+      { "name": "해파리 숲", "scene": "coralRuins" },
+      { "name": "어두운 암초", "scene": "abyssReef" },
+      { "name": "심해 협곡", "scene": "abyssReef" },
+      { "name": "빛나는 심해", "scene": "abyssReef" },
+      { "name": "해구 입구", "scene": "abyssReef" },
+      { "name": "심해 박쥐왕의 굴", "scene": "abyssReef" }
+    ]
+  },
+  {
+    "id": 13,
+    "name": "흑요석 화산",
+    "pool": ["emberBat", "obsidianGolem", "magmaDragon"],
+    "boss": { "monster": "lavaGiant", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "검은 유리 들판", "scene": "obsidianField" },
+      { "name": "흑요석 절벽", "scene": "obsidianField" },
+      { "name": "불타는 바위길", "scene": "obsidianField" },
+      { "name": "연기 나는 틈", "scene": "obsidianField" },
+      { "name": "흑요석 숲", "scene": "obsidianField" },
+      { "name": "마그마 강", "scene": "magmaRiver" },
+      { "name": "용암 다리", "scene": "magmaRiver" },
+      { "name": "불꽃 간헐천", "scene": "magmaRiver" },
+      { "name": "분화구 가장자리", "scene": "magmaRiver" },
+      { "name": "용암 거인의 화구", "scene": "magmaRiver" }
+    ]
+  },
+  {
+    "id": 14,
+    "name": "잿더미 왕국",
+    "pool": ["emberBat", "obsidianGolem", "magmaDragon"],
+    "boss": { "monster": "emberEmperor", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "잿빛 성문", "scene": "ashCity" },
+      { "name": "무너진 시장", "scene": "ashCity" },
+      { "name": "타버린 광장", "scene": "ashCity" },
+      { "name": "재의 거리", "scene": "ashCity" },
+      { "name": "그을린 궁전", "scene": "ashCity" },
+      { "name": "불씨의 회랑", "scene": "emberThrone" },
+      { "name": "왕좌로 가는 길", "scene": "emberThrone" },
+      { "name": "불타는 근위대", "scene": "emberThrone" },
+      { "name": "황제의 홀", "scene": "emberThrone" },
+      { "name": "잿불 황제룡의 옥좌", "scene": "emberThrone" }
+    ]
+  },
+  {
+    "id": 15,
+    "name": "유령 묘지",
+    "pool": ["ghostBat", "graveGolem", "boneDragon"],
+    "boss": { "monster": "bloodCount", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "묘지 정문", "scene": "ghostGrave" },
+      { "name": "이름 없는 비석", "scene": "ghostGrave" },
+      { "name": "창백한 언덕", "scene": "ghostGrave" },
+      { "name": "울부짖는 나무", "scene": "ghostGrave" },
+      { "name": "안개 묘역", "scene": "ghostGrave" },
+      { "name": "지하 납골당", "scene": "boneCrypt" },
+      { "name": "해골 회랑", "scene": "boneCrypt" },
+      { "name": "촛불 제단", "scene": "boneCrypt" },
+      { "name": "망자의 방", "scene": "boneCrypt" },
+      { "name": "흡혈귀의 관", "scene": "boneCrypt" }
+    ]
+  },
+  {
+    "id": 16,
+    "name": "붉은 달의 성",
+    "pool": ["ghostBat", "graveGolem", "boneDragon"],
+    "boss": { "monster": "tombKeeper", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "핏빛 성문", "scene": "bloodCastle" },
+      { "name": "붉은 정원", "scene": "bloodCastle" },
+      { "name": "박쥐 탑", "scene": "bloodCastle" },
+      { "name": "그림자 회랑", "scene": "bloodCastle" },
+      { "name": "연회장", "scene": "bloodCastle" },
+      { "name": "붉은 달 다리", "scene": "crimsonBridge" },
+      { "name": "부서진 첨탑", "scene": "crimsonBridge" },
+      { "name": "달빛 테라스", "scene": "crimsonBridge" },
+      { "name": "성주의 길", "scene": "crimsonBridge" },
+      { "name": "묘지기 거상의 문", "scene": "crimsonBridge" }
+    ]
+  },
+  {
+    "id": 17,
+    "name": "폭풍 고원",
+    "pool": ["stormBat", "thunderGolem", "thunderWyvern"],
+    "boss": { "monster": "stormDragon", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "바람 부는 들판", "scene": "stormPlateau" },
+      { "name": "번개 맞은 나무", "scene": "stormPlateau" },
+      { "name": "돌풍 언덕", "scene": "stormPlateau" },
+      { "name": "먹구름 고개", "scene": "stormPlateau" },
+      { "name": "폭우 협곡", "scene": "stormPlateau" },
+      { "name": "천둥 봉우리 길", "scene": "thunderPeak" },
+      { "name": "벼락 바위", "scene": "thunderPeak" },
+      { "name": "회오리 능선", "scene": "thunderPeak" },
+      { "name": "폭풍의 눈", "scene": "thunderPeak" },
+      { "name": "폭풍룡의 정상", "scene": "thunderPeak" }
+    ]
+  },
+  {
+    "id": 18,
+    "name": "하늘 성채",
+    "pool": ["stormBat", "thunderGolem", "thunderWyvern"],
+    "boss": { "monster": "thunderKing", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "구름 계단", "scene": "skyCitadel" },
+      { "name": "떠 있는 정원", "scene": "skyCitadel" },
+      { "name": "하늘 다리", "scene": "skyCitadel" },
+      { "name": "바람의 탑", "scene": "skyCitadel" },
+      { "name": "구름 위 광장", "scene": "skyCitadel" },
+      { "name": "천공 회랑", "scene": "cloudAltar" },
+      { "name": "별빛 제단", "scene": "cloudAltar" },
+      { "name": "천둥 종탑", "scene": "cloudAltar" },
+      { "name": "성채의 꼭대기", "scene": "cloudAltar" },
+      { "name": "천둥 박쥐 대왕의 둥지", "scene": "cloudAltar" }
+    ]
+  },
+  {
+    "id": 19,
+    "name": "심연의 문",
+    "pool": ["voidBat", "voidGolem", "primalDrake"],
+    "boss": { "monster": "voidTitan", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "균열의 입구", "scene": "abyssGate" },
+      { "name": "보랏빛 문양", "scene": "abyssGate" },
+      { "name": "뒤틀린 기둥", "scene": "abyssGate" },
+      { "name": "속삭이는 회랑", "scene": "abyssGate" },
+      { "name": "무너지는 계단", "scene": "abyssGate" },
+      { "name": "공허의 길", "scene": "voidPath" },
+      { "name": "거꾸로 선 수정", "scene": "voidPath" },
+      { "name": "끝없는 낭떠러지", "scene": "voidPath" },
+      { "name": "심연의 문턱", "scene": "voidPath" },
+      { "name": "심연 거신의 문", "scene": "voidPath" }
+    ]
+  },
+  {
+    "id": 20,
+    "name": "태초의 둥지",
+    "pool": ["voidBat", "voidGolem", "primalDrake"],
+    "boss": { "monster": "primordial", "timeLimitMs": 60000 },
+    "stages": [
+      { "name": "태초의 불길", "scene": "primalNest" },
+      { "name": "거대한 알 무덤", "scene": "primalNest" },
+      { "name": "첫 번째 뼈", "scene": "primalNest" },
+      { "name": "붉은 협곡", "scene": "primalNest" },
+      { "name": "불의 요람", "scene": "primalNest" },
+      { "name": "근원의 빛", "scene": "originCore" },
+      { "name": "시간의 둥지", "scene": "originCore" },
+      { "name": "태초의 계단", "scene": "originCore" },
+      { "name": "용의 심장 앞", "scene": "originCore" },
+      { "name": "태초의 용", "scene": "originCore" }
+    ]
+  }
+]

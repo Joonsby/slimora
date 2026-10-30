@@ -5,15 +5,15 @@ import { applyEffects, deriveMonsterStats, deriveSlimeStats, monsterAbsorb, mons
 const caps = { damageReduction: 0.7, lifesteal: 0.5, critChance: 0.6 };
 
 describe('deriveSlimeStats', () => {
-  it('기본값 + 공격력 강화 레벨 × 3', () => {
+  it('기본값 + 공격력 강화 레벨 × 1.5', () => {
     const cfg = cloneConfig();
     expect(deriveSlimeStats({ upgrades: { attack: 0 } }, cfg)).toMatchObject({ maxHp: 120, attack: 12, critChance: 0.05 });
-    expect(deriveSlimeStats({ upgrades: { attack: 5 } }, cfg).attack).toBe(27);
+    expect(deriveSlimeStats({ upgrades: { attack: 4 } }, cfg).attack).toBe(18);
   });
 
-  it('최대 HP 강화 레벨 × 25 · 치명타 강화 레벨 × 0.5%p', () => {
+  it('최대 HP 강화 레벨 × 15 · 치명타 강화 레벨 × 0.5%p', () => {
     const s = deriveSlimeStats({ upgrades: { maxHp: 4, critChance: 10 } }, cloneConfig());
-    expect(s.maxHp).toBe(220);
+    expect(s.maxHp).toBe(180);
     expect(s.critChance).toBeCloseTo(0.1);
     expect(s.attack).toBe(12);
   });
@@ -22,7 +22,15 @@ describe('deriveSlimeStats', () => {
     // 흡수 160 → 레벨 5 → 기본값 × 1.08
     const s = deriveSlimeStats({ upgrades: { attack: 2, maxHp: 0 }, absorption: { golem: 160 } }, cloneConfig());
     expect(s.maxHp).toBe(130); // round(120 × 1.08)
-    expect(s.attack).toBe(19); // round(12 × 1.08) + 3 × 2
+    expect(s.attack).toBe(16); // round(12 × 1.08) + 1.5 × 2
+  });
+
+  it('강화 돌파 — every 레벨마다 그 능력치 전체에 배율을 곱한다', () => {
+    const cfg = cloneConfig();
+    cfg.upgrades.find((u) => u.id === 'attack')!.milestone = { every: 10, multiplier: 2 };
+    expect(deriveSlimeStats({ upgrades: { attack: 9 } }, cfg).attack).toBe(26); // 12 + 13.5
+    expect(deriveSlimeStats({ upgrades: { attack: 10 } }, cfg).attack).toBe(54); // (12 + 15) × 2
+    expect(deriveSlimeStats({ upgrades: { attack: 20 } }, cfg).attack).toBe(168); // (12 + 30) × 4
   });
 
   it('흡수 특성이 슬라임 효과로 들어간다', () => {
@@ -70,13 +78,13 @@ describe('applyEffects — 같은 종류 합산', () => {
 describe('몬스터 수치', () => {
   it('스테이지 배율 × 계열 배율을 반올림한다', () => {
     const cfg = cloneConfig();
-    // 3 스테이지 골렘: HP 40 × 1.22² × 1.8 = 107.2 · 공격력 4 × 1.22² × 1.4 = 8.3
-    expect(deriveMonsterStats('golem', 3, cfg)).toMatchObject({ maxHp: 107, attack: 8, damageReduction: 0.3, attackIntervalMs: 1600 });
+    // 3 스테이지 골렘: HP 70 × 1.2² × 1.8 = 181.4 · 공격력 7 × 1.2² × 0.8 = 8.1
+    expect(deriveMonsterStats('golem', 3, cfg)).toMatchObject({ maxHp: 181, attack: 8, damageReduction: 0.3, attackIntervalMs: 1600 });
     expect(deriveMonsterStats('fireDragon', 6, cfg).burn).toEqual({ chance: 0.5, dpsRatio: 0.3, durationMs: 3000, maxStacks: 3 });
   });
 
-  it('골드 = 4 × 1.3^(s−1) × 계열 배율', () => {
-    expect(monsterGold('fireDragon', 6, cloneConfig())).toBe(16);
+  it('골드 = 3 × 1.2^(s−1) × 계열 배율', () => {
+    expect(monsterGold('fireDragon', 6, cloneConfig())).toBe(8);
   });
 
   it('처치당 흡수 = 1 + floor((s−1) ÷ 4)', () => {

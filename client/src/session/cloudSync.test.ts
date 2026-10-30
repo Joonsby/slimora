@@ -103,7 +103,7 @@ describe('서버 저장 — 시작할 때 맞추기', () => {
   it('기기가 더 진행했으면 서버 version 위에 덮어쓴다', async () => {
     const { session, sync, cloud, advance, store } = setup();
     await session.start();
-    await advance(5000);
+    await advance(10_000); // 첫 처치까지
     cloud.putFromOtherDevice(1);
     cloud.stored!.version = 4;
     expect(await sync.start()).toBe('uploaded');
@@ -149,7 +149,7 @@ describe('서버 저장 — 플레이 중', () => {
     const { session, sync, cloud, advance, hide, store } = setup();
     await session.start();
     await sync.start();
-    await advance(5000);
+    await advance(10_000);
 
     // 덜 진행한 기기가 끼어들었다 → 이 기기 진행으로 덮어쓴다
     cloud.putFromOtherDevice(1);

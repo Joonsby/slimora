@@ -6,7 +6,7 @@ import type { MonsterDef } from '../core/model/config';
 import type { StageId } from '../core/model/ids';
 import { findForm } from '../core/progression/forms';
 import type { GameSession, SessionEvent } from '../session/GameSession';
-import { KEY, queueCoreTextures, queueScene, sceneInfo, textureRes, type MonsterMeta } from './assets';
+import { KEY, queueCoreTextures, queueMonsters, queueScene, sceneInfo, stageMonsters, textureRes, type MonsterMeta } from './assets';
 import { DamageTextPool, FONT_FAMILY } from './DamageTextPool';
 import { slimeTint } from '../art/slimeColor';
 import { SlimeView } from './SlimeView';
@@ -85,6 +85,7 @@ export class BattleScene extends Phaser.Scene {
     this.monsterMeta = queueCoreTextures(this, this.session.config, this.texRes);
     this.stageId = this.session.view()?.stageId ?? this.session.getProgress().stage.current;
     queueScene(this, this.sceneKeyOf(this.stageId), this.bgRes());
+    queueMonsters(this, this.session.config, stageMonsters(this.session.config, this.stageId), this.texRes);
   }
 
   create(): void {
@@ -290,6 +291,8 @@ export class BattleScene extends Phaser.Scene {
         case 'battleStarted':
           this.stageId = e.stageId;
           this.removeMonster(false);
+          // 첫 몬스터가 나오기(등장 대기) 전에 그 스테이지 몬스터 그림을 굽는다
+          if (queueMonsters(this, this.session.config, stageMonsters(this.session.config, e.stageId), this.texRes) && !this.load.isLoading()) this.load.start();
           this.applyScene(this.sceneKeyOf(e.stageId));
           // 서버 저장을 불러오면 형태 · 흡수 색이 통째로 바뀐 채 새 전투가 열린다
           this.refreshSlimeLook();
@@ -627,6 +630,15 @@ export class BattleScene extends Phaser.Scene {
     this.monsterDef = def;
     this.monsterSeq = seq;
     this.hpLag.monster = 1;
+    if (!this.textures.exists(KEY.monster(def.id))) {
+      // 그림이 아직 없으면 구운 뒤에 보여 준다
+      queueMonsters(this, this.session.config, [def.id], this.texRes);
+      this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+        if (this.monsterSeq === seq && !this.monster) this.showMonster(defId, seq, animate);
+      });
+      if (!this.load.isLoading()) this.load.start();
+      return;
+    }
     const meta = this.monsterMeta.get(def.id);
     const { monsterX, unit } = this.layout;
     this.monster = this.add

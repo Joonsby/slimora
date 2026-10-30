@@ -74,7 +74,7 @@ describe('보스 효과', () => {
   });
 });
 
-/** 밸런스 불변식 — 기대 강화 수준이면 어느 형태든 보스를 깬다 (상성은 지름길이지 자물쇠가 아니다) */
+/** 밸런스 불변식 — 장 보스는 강화 돌파(25 레벨마다)가 관문이다. 돌파하면 어느 형태든 깬다 */
 describe('보스 밸런스', () => {
   const clears = (stageId: number, level: number, absorb: number, form: string | null) =>
     [1, 2, 3].every((seed) => {
@@ -87,13 +87,13 @@ describe('보스 밸런스', () => {
       return b.phase === 'cleared';
     });
 
-  it('거대 골렘(7) — 강화 24 레벨이면 기본 슬라임 · 세 형태 모두 깬다', () => {
-    for (const form of [null, 'vampire', 'iron', 'flame']) expect(clears(7, 24, 300, form)).toBe(true);
+  it('거대 골렘(10) — 첫 돌파(25 레벨) 전에는 못 깨고, 돌파하면 기본 슬라임 · 세 형태 모두 깬다', () => {
+    expect(clears(10, 24, 300, null)).toBe(false);
+    for (const form of [null, 'vampire', 'iron', 'flame']) expect(clears(10, 25, 300, form)).toBe(true);
   });
 
-  it('고대 화염룡(15) — 강화 70 레벨이면 세 형태 모두 깨고, 흡혈이 가장 먼저 깬다', () => {
-    for (const form of ['vampire', 'iron', 'flame']) expect(clears(15, 70, 1500, form)).toBe(true);
-    expect(clears(15, 60, 1500, 'vampire')).toBe(true);
-    expect(clears(15, 60, 1500, 'iron')).toBe(false);
+  it('고대 화염룡(20) — 두 번째 돌파(50 레벨)면 세 형태 모두 깬다', () => {
+    expect(clears(20, 49, 1500, 'iron')).toBe(false);
+    for (const form of ['vampire', 'iron', 'flame']) expect(clears(20, 50, 1500, form)).toBe(true);
   });
 });

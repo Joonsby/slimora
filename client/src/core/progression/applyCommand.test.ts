@@ -26,10 +26,10 @@ describe('보상 · 강화', () => {
     expect(before.gold).toBe(0);
   });
 
-  it('비용 — 공격력 · HP 는 floor(10 × 1.13^레벨), 치명타는 floor(50 × 1.2^레벨)', () => {
+  it('비용 — 공격력 · HP 는 floor(10 × 1.1^레벨), 치명타는 floor(50 × 1.2^레벨)', () => {
     const def = (id: string) => cfg.upgrades.find((u) => u.id === id)!;
-    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def('attack'), lv))).toEqual([10, 11, 12, 33]);
-    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def('maxHp'), lv))).toEqual([10, 11, 12, 33]);
+    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def('attack'), lv))).toEqual([10, 11, 12, 25]);
+    expect([0, 1, 2, 10].map((lv) => getUpgradeCost(def('maxHp'), lv))).toEqual([10, 11, 12, 25]);
     expect([0, 1, 2].map((lv) => getUpgradeCost(def('critChance'), lv))).toEqual([50, 60, 72]);
   });
 

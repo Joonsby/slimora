@@ -62,17 +62,17 @@ describe('진화 검사', () => {
     expect(checkEvolve(current, 'vampire', cfg, false)).toEqual({ ok: false, error: { code: 'ALREADY_CURRENT' } });
     expect(checkEvolve(current, 'iron', cfg, false)).toEqual({ ok: false, error: { code: 'FORM_LOCKED' } });
     const back = progress({ bat: 200, golem: 200, cleared: 3, form: 'iron', unlocked: ['vampire', 'iron'] });
-    expect(checkEvolve(back, 'vampire', cfg, false)).toEqual({ ok: false, error: { code: 'NOT_ENOUGH_GOLD', need: 439, have: 0 } });
+    expect(checkEvolve(back, 'vampire', cfg, false)).toEqual({ ok: false, error: { code: 'NOT_ENOUGH_GOLD', need: 345, have: 0 } });
     expect(checkEvolve(back, 'ghost', cfg, false)).toEqual({ ok: false, error: { code: 'UNKNOWN_FORM' } });
   });
 
-  it('처음 진화하는 형태는 무료, 해금한 형태로 돌아갈 때는 floor(200 × 1.3^최고클리어)', () => {
+  it('처음 진화하는 형태는 무료, 해금한 형태로 돌아갈 때는 floor(200 × 1.2^최고클리어)', () => {
     const s = progress({ bat: 200, golem: 200, cleared: 3, form: 'iron', unlocked: ['vampire', 'iron'] });
     expect(evolveCost(form('flame'), s.slime, 3, cfg)).toBe(0);
-    expect(evolveCost(form('vampire'), s.slime, 3, cfg)).toBe(439);
-    expect(evolveCost(form('vampire'), s.slime, 7, cfg)).toBe(Math.floor(200 * 1.3 ** 7));
+    expect(evolveCost(form('vampire'), s.slime, 3, cfg)).toBe(345);
+    expect(evolveCost(form('vampire'), s.slime, 7, cfg)).toBe(Math.floor(200 * 1.2 ** 7));
     const r = applyCommand({ ...s, gold: 500 }, { type: 'evolve', form: 'vampire', inBossFight: false }, cfg);
-    expect(r.ok && r.value.gold).toBe(61);
+    expect(r.ok && r.value.gold).toBe(155);
   });
 });
 

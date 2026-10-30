@@ -3,7 +3,9 @@ import { sceneArt, type SceneArt } from '../art/backgrounds';
 import { monsterSprite } from '../art/monsters';
 import { slimeLayers, slimePortrait, SLIME_H, SLIME_W, type SlimePreset } from '../art/slime';
 import { dataUrl, linear, radial, svgDoc } from '../art/svg';
+import { findStage } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
+import type { StageId } from '../core/model/ids';
 
 /** 아트(SVG)를 Phaser 텍스처로 올린다. 키 이름과 몬스터 크기 정보도 여기서 관리한다 */
 
@@ -43,7 +45,7 @@ const queue = (scene: Phaser.Scene, key: string, svg: string) => {
   if (!scene.textures.exists(key)) scene.load.image(key, dataUrl(svg));
 };
 
-/** preload 에서 — 슬라임 층 · 몬스터 · 효과 */
+/** preload 에서 — 슬라임 층 · 용병 · 효과. 몬스터는 크기 정보만 모두 만들고, 그림은 스테이지마다 queueMonsters 로 굽는다 */
 export function queueCoreTextures(scene: Phaser.Scene, config: GameConfig, res: number): Map<string, MonsterMeta> {
   for (const preset of SLIME_PRESETS) {
     const layers = slimeLayers(preset, res);
@@ -56,7 +58,6 @@ export function queueCoreTextures(scene: Phaser.Scene, config: GameConfig, res: 
   const meta = new Map<string, MonsterMeta>();
   for (const def of config.monsters) {
     const sprite = monsterSprite(def.visual.preset, def.visual.tint, res);
-    queue(scene, KEY.monster(def.id), sprite.svg);
     meta.set(def.id, { width: sprite.width, height: sprite.height, footY: sprite.footY, hover: sprite.hover });
   }
   for (const def of config.mercenaries) {
@@ -90,6 +91,24 @@ export function sceneInfo(key: string, res: number): SceneArt {
     sceneCache.set(key, art);
   }
   return art;
+}
+
+/** 그 스테이지에 나오는 몬스터 (보스 포함) */
+export function stageMonsters(config: GameConfig, stageId: StageId): string[] {
+  const stage = findStage(config, stageId);
+  return [...stage.spawns.map((s) => s.monster), ...(stage.boss ? [stage.boss.monster] : [])];
+}
+
+/** 몬스터 텍스처를 큐에 넣는다. 넣은 게 있으면 true */
+export function queueMonsters(scene: Phaser.Scene, config: GameConfig, ids: readonly string[], res: number): boolean {
+  let queued = false;
+  for (const id of ids) {
+    const def = config.monsters.find((m) => m.id === id);
+    if (!def || scene.textures.exists(KEY.monster(id))) continue;
+    queue(scene, KEY.monster(id), monsterSprite(def.visual.preset, def.visual.tint, res).svg);
+    queued = true;
+  }
+  return queued;
 }
 
 /** 배경 텍스처를 큐에 넣는다. 이미 있으면 false */
