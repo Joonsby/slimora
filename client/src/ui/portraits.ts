@@ -29,3 +29,9 @@ export function familyImage(config: GameConfig, family: string): string {
   const def = config.monsters.find((m) => m.family === family);
   return def ? monsterImage(config, def.id) : '';
 }
+
+export function mercenaryImage(config: GameConfig, id: string): string {
+  const def = config.mercenaries.find((m) => m.id === id);
+  if (!def) return '';
+  return cached(`merc:${id}`, () => (def.look.preset === 'slime' ? slimePortrait(def.look.tint, null, 1.5) : monsterSprite(def.look.preset, def.look.tint, 1).svg));
+}

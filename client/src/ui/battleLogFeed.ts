@@ -62,6 +62,14 @@ function describe(e: SessionEvent, cfg: GameConfig, state: GameStoreState): Omit
       return { text: `${findForm(cfg, e.form)?.name ?? e.form}으로 진화!`, tone: 'good' };
     case 'masteryUp':
       return { text: `${findForm(cfg, e.form)?.name ?? e.form} 숙련 Lv ${e.level}`, tone: 'good' };
+    case 'gemsGained':
+      return { text: `보석 +${e.amount} (${{ firstClear: '첫 클리어', rebirth: '환생', ad: '광고' }[e.reason]})`, tone: 'good' };
+    case 'purchased':
+      return { text: `${e.name} 구매 완료 — 지급했습니다`, tone: 'good' };
+    case 'rebirth':
+      return { text: `환생 ${e.count}회째 — 정수 +${e.essence}`, tone: 'good' };
+    case 'offlineReward':
+      return { text: e.bonus ? `광고 보너스 +${e.gold} G` : `자리 비운 동안 +${e.gold} G`, tone: 'gold' };
     default:
       return null;
   }

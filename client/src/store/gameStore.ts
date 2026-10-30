@@ -1,4 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import type { OfflineReward } from '../core/idle/offline';
 import type { BattleMode } from '../core/model/battle';
 import type { StageId } from '../core/model/ids';
 import type { ProgressState } from '../core/model/progress';
@@ -14,13 +15,19 @@ export interface BattleHud {
   boss: boolean;
 }
 
-export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb' | 'evolve';
+export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb' | 'evolve' | 'rebirth' | 'mercenary' | 'shop';
 export type LogTone = 'normal' | 'good' | 'bad' | 'gold';
 
 export interface LogEntry {
   id: number;
   text: string;
   tone: LogTone;
+}
+
+/** 오프라인 보상 창. 기본 보상은 이미 받았고, 광고 보너스만 남아 있을 수 있다 */
+export interface OfflineNotice {
+  reward: OfflineReward;
+  bonus: 'available' | 'claimed';
 }
 
 export interface GameStoreState {
@@ -30,6 +37,7 @@ export interface GameStoreState {
   hud: BattleHud;
   sheet: Sheet;
   log: LogEntry[];
+  offline: OfflineNotice | null;
 }
 
 export type GameStore = StoreApi<GameStoreState>;
@@ -44,6 +52,7 @@ export function createGameStore(progress: ProgressState): GameStore {
     hud: { stageId: progress.stage.current, mode: progress.stage.mode, kills: 0, killsToClear: 0, boss: false },
     sheet: 'none',
     log: [],
+    offline: null,
   }));
 }
 

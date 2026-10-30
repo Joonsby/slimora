@@ -4,6 +4,9 @@ import type { GameConfig } from '../model/config';
 import type { ProgressState, StageProgress } from '../model/progress';
 import { err, ok, type Result } from '../result';
 import { checkEvolve } from './forms';
+import { claimAdGems, firstClearGems, setParty, summon } from './mercenary';
+import { purchaseLegacy, rebirth } from './prestige';
+import { grantPurchase } from './shop';
 import { getUpgradeCost, isMaxLevel } from './upgrades';
 
 /** 진행 상태의 유일한 변경 경로. 원본을 바꾸지 않고 새 상태를 돌려준다 */
@@ -47,8 +50,10 @@ export function applyCommand(s: ProgressState, c: GameCommand, cfg: GameConfig):
     case 'stageCleared': {
       const next = c.stage + 1;
       const advance = s.stage.autoAdvance && hasStage(cfg, next);
+      // 모든 회차를 통틀어 처음 깬 스테이지면 보석
+      const firstClear = c.stage > Math.max(s.prestige.bestStage, s.stage.highestCleared);
       return ok(
-        withStage(s, {
+        withStage(firstClear ? { ...s, gems: s.gems + firstClearGems(c.stage, cfg) } : s, {
           highestCleared: Math.max(s.stage.highestCleared, c.stage),
           current: advance ? next : c.stage,
           mode: advance ? 'challenge' : 'farm',
@@ -80,6 +85,26 @@ export function applyCommand(s: ProgressState, c: GameCommand, cfg: GameConfig):
       const unlockedForms = s.slime.unlockedForms.includes(c.form) ? s.slime.unlockedForms : [...s.slime.unlockedForms, c.form];
       return ok({ ...s, gold: s.gold - check.value.cost, slime: { ...s.slime, form: c.form, unlockedForms } });
     }
+
+    case 'rebirth':
+      return rebirth(s, cfg);
+
+    case 'purchaseLegacy':
+      return purchaseLegacy(s, c.legacy, cfg);
+
+    case 'summon': {
+      const r = summon(s, c.count, c.seed, cfg);
+      return r.ok ? ok(r.value.progress) : r;
+    }
+
+    case 'setParty':
+      return setParty(s, c.party, cfg);
+
+    case 'claimAdGems':
+      return claimAdGems(s, c.day, cfg);
+
+    case 'grantPurchase':
+      return grantPurchase(s, c.sku, c.orderId, cfg);
   }
 }
 

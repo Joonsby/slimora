@@ -1,5 +1,5 @@
 import type { EffectSpec } from './effects';
-import type { FamilyId, FormId, MonsterId, StageId, UpgradeId } from './ids';
+import type { FamilyId, FormId, LegacyId, MercenaryId, MonsterId, StageId, UpgradeId } from './ids';
 
 export interface GameConfig {
   configVersion: string;
@@ -10,6 +10,28 @@ export interface GameConfig {
   upgrades: UpgradeDef[];
   traits: TraitDef[];
   forms: FormDef[];
+  /** 환생 정수로 사는 영구 강화 */
+  legacy: LegacyDef[];
+  /** 뽑기로 모으는 동료 */
+  mercenaries: MercenaryDef[];
+  /** 결제 상품. sku 는 두 스토어(앱인토스 · 원스토어)에 같은 ID 로 등록한다 */
+  shop: ProductDef[];
+}
+
+export interface ProductDef {
+  sku: string;
+  name: string;
+  /** consumable = 여러 번 살 수 있다 · once = 한 번만 (스타터 팩 · 광고 패스) */
+  kind: 'consumable' | 'once';
+  /** 보너스 포함 지급 보석 */
+  gems: number;
+  /** 표시용 — gems 중 보너스 */
+  bonus: number;
+  essence: number;
+  adPass: boolean;
+  /** 스토어 가격을 못 받을 때 보여 줄 원화 가격 */
+  priceKrw: number;
+  desc: string;
 }
 
 export interface BalanceConfig {
@@ -21,6 +43,29 @@ export interface BalanceConfig {
   level: { divisor: number; statBonusPerLevel: number };
   /** 전환 비용 = floor(switchCostBase × switchCostGrowth^최고클리어). 진화 연출 동안 전투를 멈춘다 */
   evolution: { switchCostBase: number; switchCostGrowth: number; pauseMs: number };
+  /** 떠나 있던 시간(minAwayMs 이상, capMs 까지)만큼 사냥터를 simMs 동안 실제로 돌려 본 속도 × efficiency 로 준다. 광고를 보면 adMultiplier 배 */
+  offline: { minAwayMs: number; capMs: number; efficiency: number; simMs: number; adMultiplier: number };
+  /** unlockStage 를 깨면 환생할 수 있다. 받는 정수 = floor(essenceBase × essenceGrowth^(최고클리어 − unlockStage)) */
+  prestige: { unlockStage: StageId; essenceBase: number; essenceGrowth: number };
+  /** 보석 뽑기. 등급을 rates 로 고르고, 그 등급 안에서는 같은 확률. ten 은 희귀 이상 1명 보장 */
+  gacha: { single: number; ten: number; rates: Record<Rarity, number>; maxLevel: number; maxedRefund: number };
+  /** 보석 얻는 곳. 첫 클리어 = firstClearBase + firstClearPerStage × (스테이지 − 1) */
+  gems: { starter: number; firstClearBase: number; firstClearPerStage: number; rebirth: number; adReward: number; adDailyLimit: number };
+  /** 함께 싸우는 용병 수. 레벨마다 지원 공격 +supportPerLevel, 패시브 +passivePerLevel (비율) */
+  party: { slots: number; supportPerLevel: number; passivePerLevel: number };
+}
+
+export type Rarity = 'common' | 'rare' | 'legendary';
+
+/** 용병. 편성하면 지원 공격(슬라임 공격력 × power, intervalMs 마다)과 패시브를 준다 */
+export interface MercenaryDef {
+  id: MercenaryId;
+  name: string;
+  rarity: Rarity;
+  /** 외형: 몬스터 프리셋(bat · golem · dragon) 또는 slime */
+  look: { preset: string; tint: string };
+  support: { power: number; intervalMs: number };
+  passive: { stat: 'attack' | 'maxHp' | 'gold' | 'critChance' | 'damageReduction'; value: number };
 }
 
 export interface FamilyDef {
@@ -53,6 +98,17 @@ export interface StageDef {
   /** 처치 목표를 채우면 등장한다. 등장 순간부터 제한시간이 흐른다 */
   boss?: { monster: MonsterId; timeLimitMs: number };
   overrides?: Partial<{ hp: number; atk: number; goldPerKill: number; absorbPerKill: number }>;
+}
+
+/** 영구 강화. 공격력 · 최대 HP · 골드는 배율(+perLevel), offlineHours 는 오프라인 보상 상한에 더하는 시간 */
+export interface LegacyDef {
+  id: LegacyId;
+  name: string;
+  stat: 'attack' | 'maxHp' | 'gold' | 'offlineHours';
+  perLevel: number;
+  maxLevel: number | null;
+  /** cost(lv) = ceil(base × growth^lv) 정수 */
+  cost: { base: number; growth: number };
 }
 
 export interface UpgradeDef {

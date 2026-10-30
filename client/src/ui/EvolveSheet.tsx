@@ -3,6 +3,7 @@ import type { SlimePreset } from '../art/slime';
 import type { CombatStats } from '../core/model/battle';
 import type { FormDef } from '../core/model/config';
 import { evolveCost, findForm, formStatus, masteryLevel, type FormStatus } from '../core/progression/forms';
+import { legacyBonus } from '../core/progression/prestige';
 import { deriveSlimeStats } from '../core/stats';
 import { openSheet } from '../store/gameStore';
 import { describeEffects } from './effectText';
@@ -23,6 +24,7 @@ export function EvolveSheet() {
   const highest = useGame((s) => s.progress.stage.highestCleared);
   const boss = useGame((s) => s.hud.boss);
   const look = useSlimeLook();
+  const prestige = useGame((s) => s.progress.prestige);
   const [selected, setSelected] = useState<string | null>(null);
   const compareRef = useRef<HTMLDivElement>(null);
   // 고른 형태의 비교표 · 확정 버튼이 시트 아래로 밀려 있으면 보이게 내린다.
@@ -60,7 +62,7 @@ export function EvolveSheet() {
               <figcaption>{pick.name}</figcaption>
             </figure>
           </div>
-          <CompareTable before={deriveSlimeStats(slime, config)} after={deriveSlimeStats({ ...slime, form: pick.id }, config)} />
+          <CompareTable before={deriveSlimeStats(slime, config, legacyBonus(prestige, config))} after={deriveSlimeStats({ ...slime, form: pick.id }, config, legacyBonus(prestige, config))} />
           {boss && <p className="hint warn">보스전 중에는 진화할 수 없습니다.</p>}
           <button
             className="evolve-confirm"

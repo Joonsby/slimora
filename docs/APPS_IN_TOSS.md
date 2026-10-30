@@ -31,6 +31,8 @@
 | 3 | **게임 등급분류.** 스토어 출시 이력이 없으므로 게임물관리위원회(GRAC)에 직접 신청 — 스토어명 「기타-앱인토스」, 심의 약 10~15일, 수수료 있음 | 같음 5-3 · 토스 공식 블로그 2025-11-07 (`toss.im/apps-in-toss/blog/game_rating_classification`) |
 | 4 | 에셋 — 로고 600×600 PNG (각진 정사각형, 배경 필수, 라이트 · 다크 양쪽에서 보일 것) · 썸네일 1932×828 PNG · 상세 설명 · 고객문의 이메일. **이미지는 `store-assets/` 에 준비됨 (2026-10-28)** — 아래 표 | D/guide/operation/console-workspace · D/design/consumer-ux-guide |
 | 5 | 토스 앱 QR 테스트 **최소 1회** (안 하면 검토 요청 불가) → 검토 요청 → 출시 | D/guide/operation/console-workspace · D/guide/operation/deploy |
+| 6 | **인앱 결제 상품 등록 (사업자 등록 필요).** `client/src/data/shop.json` 의 sku 와 같은 ID 로 5개 — `gems_300` · `gems_1100` · `gems_3800` · `starter_pack` 은 소모성, `ad_pass` 는 비소모성. 표시 가격은 콘솔 값이 화면에 그대로 나온다 | D/guide/monetization/in-app-payment |
+| 7 | **등급분류 신청 내용에 유료 아이템 · 확률형 아이템(용병 영입)을 포함한다.** 결제를 넣기 전에 신청했다면 내용 변경이 필요한지 GRAC 에 확인한다. 확률은 게임 안 용병 화면 「확률 보기」에 공개돼 있다 | GRAC |
 
 **콘솔 이미지 (`store-assets/`, 생성: `client` 에서 `npm run build && npm run store-assets`)**
 
@@ -119,15 +121,15 @@
 |---|---|---|
 | 미니앱 이용자는 **만 19세 이상** · Android 7+ · iOS 16+ | 대상 연령이 성인이다 | D/guide/faq |
 | 로그인은 토스 로그인만 허용 (서버 mTLS · 사업자 등록 필요) | 게임은 식별키로 충분 — 로그인 없이 시작 | D/intro/guide · D/documentation/common/authentication/toss-login |
-| 광고는 앱인토스 광고(전면 · 보상형 · 배너)만, 외부 광고 네트워크 금지. 「광고 보고 이어하기」가 공식 예시 | D13 배속이나 오프라인 보상 2배를 보상형 광고로 붙일 수 있다 | D/guide/monetization/in-app-ad |
-| 디지털 상품은 인앱 결제만 (앱마켓 15% + 토스 5%) | 유료화 시 서버 필수 | D/guide/monetization/in-app-payment |
+| 광고는 앱인토스 광고(전면 · 보상형 · 배너)만, 외부 광고 네트워크 금지. 「광고 보고 이어하기」가 공식 예시 | D13 배속이나 오프라인 보상 2배를 보상형 광고로 붙일 수 있다 — **오프라인 보상 2배로 반영 (2026-10-30).** 콘솔에서 보상형 광고 그룹을 만들고 그 ID 를 빌드 환경변수 `VITE_AIT_REWARD_AD_ID` 에 넣어야 버튼이 나온다 | D/guide/monetization/in-app-ad |
+| 디지털 상품은 인앱 결제만 (앱마켓 15% + 토스 5%) | 유료화 시 서버 필수 — **반영 (2026-10-30)** `IAP.createOneTimePurchaseOrder` 의 `processProductGrant` 에서 지급 · 기기 저장까지 마친 뒤 true 를 돌려준다. 지급 전에 앱이 꺼지면 다음 실행 때 `getPendingOrders` → 지급 → `completeProductGrant`. 진행은 서버 저장으로 기기를 옮겨도 유지된다. 서버에서 주문을 검증(영수증 검증)하는 단계는 아직 없다 | D/guide/monetization/in-app-payment |
 | `Environment.getServerTime` 으로 서버 시각을 받을 수 있다 | 오프라인 보상의 시계 조작 대응(GAME_DESIGN 4-11)을 서버 없이 할 수 있다 | D/documentation/sdk/domains-api/environment |
 | Phaser · Canvas · WebGL 을 제한하는 조항은 없다 (Unity WebGL 공식 지원) | 엔진 교체 불필요. iOS 메모리 부족 시 흰 화면 주의 | D/guide/faq · D/guide/operation/toss |
 | **자체 서버는 필수가 아니다.** 토스 로그인 · 토스페이 · 스마트 발송처럼 서버 간 통신이 필요한 기능에만 필요 | 첫 출시는 서버 없이 가능 | D/guide/faq 「서버 사용이 꼭 필요한가요?」 |
 | 외부 API 를 부르려면 서버 CORS 허용 Origin 에 `https://<appName>.apps.tossmini.com` · `https://<appName>.private-apps.tossmini.com` 등록 (SDK 3.0.x 번들을 같이 운영하면 `.web.` · `.private-web.` 도) | 서버를 만들 때 필수 설정 | D/guide/faq · D/documentation/integration/sdk-3.x |
 | 미니앱 출시 체크리스트: API 통신은 **HTTPS 만**, WebSocket 은 **wss 만** | 서버는 도메인 + TLS 인증서 필요 | D/checklist/app-game |
-| 게임 리더보드는 SDK 함수(`submitGameCenterLeaderBoardScore` · `openGameCenterLeaderboard`)로 제공 | 랭킹 때문에 서버를 둘 필요는 없다 | D/documentation/common/growth/game-center |
-| WebView 옵션 `mediaPlaybackRequiresUserAction` 기본값 `true` — 사용자가 탭해야 미디어가 재생된다. 광고 재생 중에는 앱 사운드를 멈춘다 | 사운드는 첫 터치 이후에 켜지도록 구현 | D/documentation/integration/props · D/guide/monetization/in-app-ad |
+| 게임 리더보드는 SDK 함수(`submitGameCenterLeaderBoardScore` · `openGameCenterLeaderboard`)로 제공 | 랭킹 때문에 서버를 둘 필요는 없다 — **반영 (2026-10-30)** `Game.setLeaderboardScore` · `Game.openLeaderboard` (구 이름은 deprecated). 미니앱당 리더보드 1개 · 게임 카테고리만 · 미니앱 정보 승인 전에는 LEADERBOARD_NOT_FOUND · 진입 직후가 아니라 플레이를 마친 뒤 제출 · 열면 미니앱이 백그라운드로. 점수 검증은 제공되지 않는다 | D/documentation/common/growth/game-center |
+| WebView 옵션 `mediaPlaybackRequiresUserAction` 기본값 `true` — 사용자가 탭해야 미디어가 재생된다. 광고 재생 중에는 앱 사운드를 멈춘다 | 사운드는 첫 터치 이후에 켜지도록 구현 — **반영 (2026-10-30).** 첫 터치에 오디오를 열고, 광고 재생 중에는 효과음을 멈춘다 | D/documentation/integration/props · D/guide/monetization/in-app-ad |
 
 ### 사운드 구현 방침 (안)
 

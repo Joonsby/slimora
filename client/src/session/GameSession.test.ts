@@ -5,6 +5,7 @@ import { MemorySaveRepository } from '../persistence/MemorySaveRepository';
 import { createGameStore } from '../store/gameStore';
 import { arena, cloneConfig } from '../testing/fixtures';
 import { GameSession, type SessionEvent } from './GameSession';
+import { newSaveData, toEnvelope } from './saveData';
 import type { SaveRepository } from './ports';
 
 function setup(cfg: GameConfig = cloneConfig(), repo: SaveRepository = new MemorySaveRepository()) {
@@ -32,7 +33,7 @@ function setup(cfg: GameConfig = cloneConfig(), repo: SaveRepository = new Memor
       session.tick(100);
     }
   };
-  return { session, store, repo, clock, events, advance, hide: () => visibility?.(false) };
+  return { session, store, repo, clock, events, advance, hide: () => visibility?.(false), show: () => visibility?.(true) };
 }
 
 describe('GameSession', () => {
@@ -148,5 +149,105 @@ describe('GameSession', () => {
     advance(300);
     expect(session.view()!.now).toBeGreaterThan(frozenAt);
     expect(session.evolve('vampire')).toEqual({ ok: false, error: { code: 'ALREADY_CURRENT' } });
+  });
+});
+
+describe('오프라인 보상', () => {
+  const HOUR = 3_600_000;
+
+  /** 1시간 전에 2 스테이지를 사냥하다 떠난 저장 */
+  function savedAway() {
+    const cfg = cloneConfig();
+    const repo = new MemorySaveRepository();
+    const data = newSaveData(cfg, 0, 'away');
+    data.progress.stage = { highestCleared: 2, current: 2, mode: 'farm', autoAdvance: true };
+    data.progress.slime.upgrades = { attack: 10, maxHp: 10, critChance: 0 };
+    repo.saved = toEnvelope(data, cfg, 0);
+    const ctx = setup(cfg, repo);
+    ctx.clock.now = HOUR;
+    return ctx;
+  }
+
+  it('저장 후 1시간 지나 시작하면 기본 보상을 바로 받고, 광고 보너스는 한 번만', async () => {
+    const { session, store, events } = savedAway();
+    await session.start();
+    const notice = store.getState().offline!;
+    expect(notice.reward.awayMs).toBe(HOUR);
+    expect(store.getState().progress.gold).toBe(notice.reward.gold);
+    expect(store.getState().progress.slime.absorption.golem).toBe(notice.reward.absorb.golem);
+    expect(events.some((e) => e.type === 'offlineReward' && !e.bonus)).toBe(true);
+
+    expect(session.claimOfflineBonus()).toBe(true);
+    expect(store.getState().progress.gold).toBe(notice.reward.gold * 2);
+    expect(store.getState().offline?.bonus).toBe('claimed');
+    expect(session.claimOfflineBonus()).toBe(false);
+    session.dismissOffline();
+    expect(store.getState().offline).toBeNull();
+  });
+
+  it('화면이 가려졌다 2분 뒤 돌아오면 그 사이 보상을 준다. 1분 미만이면 없다', async () => {
+    const { session, store, clock, hide, show } = setup();
+    await session.start();
+    hide();
+    clock.now += 30_000;
+    show();
+    expect(store.getState().offline).toBeNull();
+    hide();
+    clock.now += 120_000;
+    show();
+    expect(store.getState().offline?.reward.awayMs).toBe(120_000);
+  });
+});
+
+describe('환생', () => {
+  it('환생하면 1 스테이지 도전부터 다시 열고, 정수 강화는 진행 중인 전투에 바로 반영된다', async () => {
+    const { session, store, events } = setup();
+    await session.start();
+    const p = store.getState().progress;
+    store.setState({ progress: { ...p, gold: 999, stage: { highestCleared: 10, current: 10, mode: 'farm', autoAdvance: true } } });
+    expect(session.rebirth().ok).toBe(true);
+    const after = store.getState().progress;
+    expect(after).toMatchObject({ gold: 0, stage: { highestCleared: 0, current: 1, mode: 'challenge' }, prestige: { count: 1, bestStage: 10 } });
+    expect(session.view()).toMatchObject({ stageId: 1, mode: 'challenge' });
+    expect(events.some((e) => e.type === 'rebirth' && e.count === 1 && e.essence === after.prestige.essence)).toBe(true);
+
+    const attack = session.view()!.slime.stats.attack;
+    expect(session.purchaseLegacy('might').ok).toBe(true);
+    expect(session.view()!.slime.stats.attack).toBe(Math.round(attack * 1.1));
+    expect(session.view()!.goldMul).toBe(1);
+  });
+});
+
+describe('결제 지급', () => {
+  it('결제한 주문을 지급하고 저장한다. 같은 주문이 다시 와도 한 번만', async () => {
+    const { session, store, repo, events } = setup();
+    await session.start();
+    const before = store.getState().progress.gems;
+    expect(await session.grantOrder('gems_1100', 'order-1')).toBe(true);
+    expect(store.getState().progress.gems).toBe(before + 1100);
+    expect((repo as MemorySaveRepository).saved?.data).toMatchObject({ progress: { gems: before + 1100 } });
+    expect(await session.grantOrder('gems_1100', 'order-1')).toBe(true);
+    expect(store.getState().progress.gems).toBe(before + 1100);
+    expect(events.filter((e) => e.type === 'purchased')).toHaveLength(1);
+  });
+
+  it('저장하지 못하면 false — 스토어가 미지급으로 남겨 다음에 다시 준다', async () => {
+    const repo = new MemorySaveRepository();
+    const { session } = setup(cloneConfig(), repo);
+    await session.start();
+    repo.save = () => Promise.reject(new Error('disk full'));
+    expect(await session.grantOrder('gems_300', 'order-2')).toBe(false);
+  });
+
+  it('다른 기기의 저장으로 바꿔도 이 기기에서 결제한 보석은 남는다', async () => {
+    const cfg = cloneConfig();
+    const { session, store } = setup(cfg);
+    await session.start();
+    await session.grantOrder('gems_3800', 'here');
+    const remote = newSaveData(cfg, 0, 'other-device');
+    remote.progress = { ...remote.progress, gems: 7, lifetime: { ...remote.progress.lifetime, goldEarned: 1e9 } };
+    expect(session.adopt(toEnvelope(remote, cfg, 0))).toBe(true);
+    expect(store.getState().progress.gems).toBe(7 + 3800);
+    expect(store.getState().progress.lifetime.goldEarned).toBe(1e9);
   });
 });

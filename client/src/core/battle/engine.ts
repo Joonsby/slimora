@@ -1,5 +1,5 @@
 import { findMonster, findStage } from '../lookup';
-import type { BattleEvent, BattleMode, BattleState, CombatStats, Side, UnitState } from '../model/battle';
+import type { AllyStats, BattleEvent, BattleMode, BattleState, CombatStats, Side, UnitState } from '../model/battle';
 import type { GameConfig, StageDef } from '../model/config';
 import type { MonsterId, StageId } from '../model/ids';
 import { nextFloat } from '../rng';
@@ -11,9 +11,13 @@ export interface BattleInit {
   mode: BattleMode;
   slime: CombatStats;
   seed: number;
+  /** 처치 골드 배율. 기본 1 */
+  goldMul?: number;
+  /** 함께 싸우는 용병 */
+  allies?: AllyStats[];
 }
 
-type Action = 'spawn' | 'revive' | 'slimeBurn' | 'monsterBurn' | 'slimeAttack' | 'monsterAttack' | 'bossTimeout';
+type Action = 'spawn' | 'revive' | 'slimeBurn' | 'monsterBurn' | 'slimeAttack' | 'monsterAttack' | 'bossTimeout' | 'allyAttack';
 
 /** 한 step 안에서 처리할 행동 수 상한. 넘으면 설정 오류(간격 0 등)다 */
 const MAX_ACTIONS_PER_STEP = 100_000;
@@ -34,7 +38,19 @@ export function createBattle(init: BattleInit, cfg: GameConfig): BattleState {
     bossEndsAt: null,
     rng: { s: init.seed | 0 },
     seq: 0,
+    goldMul: init.goldMul ?? 1,
+    allies: (init.allies ?? []).map((a) => ({ ...a, nextAttackAt: 0 })),
   };
+}
+
+/** 편성이 바뀌면 다음 공격부터 새 용병이 싸운다 */
+export function setAllies(state: BattleState, allies: AllyStats[]): void {
+  state.allies = allies.map((a, i) => ({ ...a, nextAttackAt: state.now + a.intervalMs * (0.6 + 0.2 * i) }));
+}
+
+/** 영구 강화를 사면 다음 몬스터부터 골드가 바뀐다 */
+export function setGoldMultiplier(state: BattleState, goldMul: number): void {
+  state.goldMul = goldMul;
 }
 
 export function isFinished(state: BattleState): boolean {
@@ -58,7 +74,7 @@ export function stepBattle(state: BattleState, dtMs: number, cfg: GameConfig): B
     const next = nextAction(state);
     if (!next || next.at > until) break;
     state.now = next.at;
-    perform(state, next.action, cfg, events);
+    perform(state, next.action, cfg, events, next.index ?? 0);
   }
   state.now = until;
   return events;
@@ -82,8 +98,8 @@ export function continueAsFarm(state: BattleState, cfg: GameConfig): void {
   state.phaseUntil = state.now + cfg.balance.battle.spawnDelayMs;
 }
 
-/** 같은 시각이면 화상 틱 → 슬라임 공격 → 몬스터 공격 → 보스 시간 초과 순 */
-function nextAction(state: BattleState): { at: number; action: Action } | null {
+/** 같은 시각이면 화상 틱 → 슬라임 공격 → 몬스터 공격 → 보스 시간 초과 → 용병 순 */
+function nextAction(state: BattleState): { at: number; action: Action; index?: number } | null {
   switch (state.phase) {
     case 'spawning':
       return { at: state.phaseUntil, action: 'spawn' };
@@ -99,10 +115,13 @@ function nextAction(state: BattleState): { at: number; action: Action } | null {
         [monster.nextAttackAt, 'monsterAttack'],
         [monster.isBoss ? (state.bossEndsAt ?? undefined) : undefined, 'bossTimeout'],
       ];
-      let best: { at: number; action: Action } | null = null;
+      let best: { at: number; action: Action; index?: number } | null = null;
       for (const [at, action] of candidates) {
         if (at !== undefined && (best === null || at < best.at)) best = { at, action };
       }
+      state.allies.forEach((a, index) => {
+        if (best === null || a.nextAttackAt < best.at) best = { at: a.nextAttackAt, action: 'allyAttack', index };
+      });
       return best;
     }
     case 'cleared':
@@ -111,8 +130,11 @@ function nextAction(state: BattleState): { at: number; action: Action } | null {
   }
 }
 
-function perform(state: BattleState, action: Action, cfg: GameConfig, events: BattleEvent[]): void {
+function perform(state: BattleState, action: Action, cfg: GameConfig, events: BattleEvent[], index: number): void {
   switch (action) {
+    case 'allyAttack':
+      allyAttack(state, index, cfg, events);
+      break;
     case 'spawn':
       spawnMonster(state, cfg, events);
       break;
@@ -164,7 +186,7 @@ function spawnMonster(state: BattleState, cfg: GameConfig, events: BattleEvent[]
     defId,
     family: def.family,
     seq,
-    gold: monsterGold(defId, state.stageId, cfg),
+    gold: Math.round(monsterGold(defId, state.stageId, cfg) * state.goldMul),
     absorb: monsterAbsorb(defId, state.stageId, cfg),
     isBoss: boss !== null,
   };
@@ -173,6 +195,7 @@ function spawnMonster(state: BattleState, cfg: GameConfig, events: BattleEvent[]
     state.bossEndsAt = state.now + boss.timeLimitMs;
   }
   state.slime.nextAttackAt = state.now + state.slime.stats.attackIntervalMs;
+  state.allies.forEach((a, i) => (a.nextAttackAt = state.now + a.intervalMs * (0.6 + 0.2 * i)));
   state.phase = 'fighting';
   events.push({ type: 'monsterSpawned', at: state.now, defId, seq, maxHp: stats.maxHp, boss: boss !== null });
 }
@@ -218,6 +241,21 @@ function attack(state: BattleState, side: Side, cfg: GameConfig, events: BattleE
     return;
   }
   if (heavySpec && (attacker.attacks + 1) % heavySpec.every === 0) events.push({ type: 'heavyWarning', at, by: side });
+}
+
+/** 용병 지원 공격 — 슬라임 공격력 × power. 치명타 · 흡혈 · 화상은 없다 */
+function allyAttack(state: BattleState, index: number, cfg: GameConfig, events: BattleEvent[]): void {
+  const ally = state.allies[index]!;
+  const monster = state.monster!;
+  const at = state.now;
+  ally.nextAttackAt += ally.intervalMs;
+  const stats: CombatStats = { ...state.slime.stats, attack: Math.max(1, Math.round(state.slime.stats.attack * ally.power)), critChance: 0 };
+  const hit = computeHit(stats, monster.stats, 1);
+  events.push({ type: 'allyAttack', at, index, id: ally.id });
+  monster.hp = Math.max(0, monster.hp - hit.amount);
+  events.push({ type: 'damage', at, to: 'monster', amount: hit.amount, crit: false, source: 'ally', reducedBy: hit.reducedBy });
+  checkEnrage(monster, 'monster', at, events);
+  if (monster.hp <= 0) onDeath(state, 'monster', cfg, events);
 }
 
 /** HP 가 기준 아래로 처음 떨어지면 공격 간격을 줄인다 */

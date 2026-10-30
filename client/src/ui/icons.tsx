@@ -98,6 +98,74 @@ export const IconCrown = (p: IconProps) => (
   </Svg>
 );
 
+export const IconSound = ({ muted, ...p }: IconProps & { muted?: boolean }) => (
+  <Svg {...p}>
+    <path d="M4 9.5 H8 L13 5 V19 L8 14.5 H4 Z" fill="currentColor" strokeLinejoin="round" />
+    {muted ? (
+      <path d="M16.5 9.5 L21.5 14.5 M21.5 9.5 L16.5 14.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    ) : (
+      <path d="M16.5 8.5 Q 19 12 16.5 15.5 M19 6 Q 23 12 19 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+    )}
+  </Svg>
+);
+
+export const IconPlay = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="2.5" y="4.5" width="19" height="15" rx="4" fill="currentColor" opacity=".25" />
+    <path d="M10 8.5 L16 12 L10 15.5 Z" fill="currentColor" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const IconRebirth = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3.5 A 8.5 8.5 0 1 1 4.2 8.6" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+    <path d="M2.8 4.2 L4.4 9.4 L9.4 7.6" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12 8 L13.4 11 L16.5 11.3 L14.1 13.4 L14.9 16.5 L12 14.8 L9.1 16.5 L9.9 13.4 L7.5 11.3 L10.6 11 Z" fill="#fff2a8" stroke="#fff" strokeWidth="0.8" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const IconEssence = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 2.5 L19.5 9 L12 21.5 L4.5 9 Z" fill="#5ee4ff" stroke="#1677a8" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M4.5 9 L19.5 9 M12 2.5 L9 9 L12 21.5 L15 9 Z" stroke="#1677a8" strokeWidth="1" fill="none" strokeLinejoin="round" />
+    <path d="M8 6.5 L10 5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </Svg>
+);
+
+export const IconMoon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M15.5 3 A 9 9 0 1 0 21 15.5 A 7 7 0 0 1 15.5 3 Z" fill="#ffd84a" stroke="#b36b00" strokeWidth="1.5" strokeLinejoin="round" />
+    <circle cx="18.5" cy="5" r="1.2" fill="#ffd84a" />
+  </Svg>
+);
+
+export const IconGem = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 3.5 H17 L21.5 9 L12 21 L2.5 9 Z" fill="#ff6fb5" stroke="#a3205f" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M2.5 9 H21.5 M7 3.5 L9.5 9 L12 21 L14.5 9 L17 3.5" stroke="#a3205f" strokeWidth="1" fill="none" strokeLinejoin="round" />
+    <path d="M5.5 8 L8 5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+  </Svg>
+);
+
+export const IconParty = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 19 C 3 12 8 9 9.5 9 C 11 9 14 12 14 19 Z" fill="#8fd3ff" stroke="#1d5c8a" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M11 19 C 11 13 15 10.5 16.5 10.5 C 18 10.5 21 13 21 19 Z" fill="#ffd84a" stroke="#9a6a00" strokeWidth="1.5" strokeLinejoin="round" />
+    <circle cx="8" cy="14.5" r="0.9" fill="#1d2530" /><circle cx="11" cy="14.5" r="0.9" fill="#1d2530" />
+    <circle cx="15.2" cy="15.5" r="0.9" fill="#1d2530" /><circle cx="18" cy="15.5" r="0.9" fill="#1d2530" />
+    <path d="M16.5 3.5 L17.4 5.6 L19.6 5.8 L17.9 7.2 L18.4 9.4 L16.5 8.2 L14.6 9.4 L15.1 7.2 L13.4 5.8 L15.6 5.6 Z" fill="#fff" />
+  </Svg>
+);
+
+export const IconTrophy = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 3.5 H17 V9 A 5 5 0 0 1 7 9 Z" fill="#ffd84a" stroke="#a86400" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M7 5 H4 V7 A 3 3 0 0 0 7 10 M17 5 H20 V7 A 3 3 0 0 1 17 10" stroke="#a86400" strokeWidth="1.5" fill="none" />
+    <path d="M10.5 13.5 H13.5 V17 H10.5 Z M7.5 17 H16.5 V20.5 H7.5 Z" fill="#ffc233" stroke="#a86400" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M9.5 5.5 V8.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" opacity=".8" />
+  </Svg>
+);
+
 export const IconClose = (p: IconProps) => (
   <Svg {...p}>
     <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />

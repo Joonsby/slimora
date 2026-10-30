@@ -2,6 +2,9 @@ import type { GameConfig } from '../core/model/config';
 import balance from './balance.json';
 import families from './families.json';
 import forms from './forms.json';
+import legacy from './legacy.json';
+import mercenaries from './mercenaries.json';
+import shop from './shop.json';
 import monsters from './monsters.json';
 import stages from './stages.json';
 import traits from './traits.json';
@@ -19,4 +22,7 @@ export const gameConfig = {
   upgrades,
   traits,
   forms,
+  legacy,
+  mercenaries,
+  shop,
 } as unknown as GameConfig;

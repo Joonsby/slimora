@@ -35,7 +35,7 @@ export default defineConfig(
         {
           patterns: [
             { regex: '^(react|react-dom|phaser|zustand)(/|$)', message: 'core 는 라이브러리에 의존하지 않는다' },
-            forbidLayers(['data', 'session', 'store', 'game', 'ui', 'persistence', 'platform', 'dev', 'art'], 'core 는 다른 계층을 모른다'),
+            forbidLayers(['data', 'session', 'store', 'game', 'ui', 'persistence', 'platform', 'dev', 'art', 'audio'], 'core 는 다른 계층을 모른다'),
           ],
         },
       ],

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { GameConfig } from '../core/model/config';
 import type { UpgradeId } from '../core/model/ids';
 import type { SlimeProgress } from '../core/model/progress';
+import { legacyBonus, type LegacyBonus } from '../core/progression/prestige';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
 import { deriveSlimeStats, UPGRADE_STAT } from '../core/stats';
 import { openSheet } from '../store/gameStore';
@@ -14,10 +15,12 @@ import { Sheet } from './Sheet';
 const ICONS: Record<string, ReactNode> = { attack: <IconSword size={30} />, maxHp: <IconHeart size={30} />, critChance: <IconCrit size={30} /> };
 
 export function UpgradeSheet() {
-  const { session, store, config } = useGameContext();
+  const { session, store, config, sfx } = useGameContext();
   const open = useGame((s) => s.sheet === 'upgrade');
   const gold = useGame((s) => s.progress.gold);
   const slime = useGame((s) => s.progress.slime);
+  const prestige = useGame((s) => s.progress.prestige);
+  const bonus = legacyBonus(prestige, config);
   const levels = slime.upgrades;
 
   return (
@@ -36,16 +39,24 @@ export function UpgradeSheet() {
                   {def.name} <span className="lv">Lv {level}</span>
                 </span>
                 <span className="stat-change">
-                  {formatStat(def.id, statAt(config, slime, def.id, level))}
+                  {formatStat(def.id, statAt(config, slime, def.id, level, bonus))}
                   {!maxed && (
                     <>
                       <IconArrow size={13} />
-                      <b>{formatStat(def.id, statAt(config, slime, def.id, level + 1))}</b>
+                      <b>{formatStat(def.id, statAt(config, slime, def.id, level + 1, bonus))}</b>
                     </>
                   )}
                 </span>
               </div>
-              <HoldButton className="buy" disabled={maxed || gold < cost} onFire={() => session.purchaseUpgrade(def.id).ok}>
+              <HoldButton
+                className="buy"
+                disabled={maxed || gold < cost}
+                onFire={() => {
+                  const ok = session.purchaseUpgrade(def.id).ok;
+                  if (ok) sfx.play('buy');
+                  return ok;
+                }}
+              >
                 {maxed ? (
                   '최대'
                 ) : (
@@ -63,9 +74,9 @@ export function UpgradeSheet() {
   );
 }
 
-/** 해당 강화만 level 로 바꿨을 때의 능력치 (레벨 · 형태 · 상한 반영) */
-function statAt(config: GameConfig, slime: SlimeProgress, id: UpgradeId, level: number): number {
-  return deriveSlimeStats({ ...slime, upgrades: { ...slime.upgrades, [id]: level } }, config)[UPGRADE_STAT[id]];
+/** 해당 강화만 level 로 바꿨을 때의 능력치 (레벨 · 형태 · 영구 강화 · 상한 반영) */
+function statAt(config: GameConfig, slime: SlimeProgress, id: UpgradeId, level: number, bonus: LegacyBonus): number {
+  return deriveSlimeStats({ ...slime, upgrades: { ...slime.upgrades, [id]: level } }, config, bonus)[UPGRADE_STAT[id]];
 }
 
 function formatStat(id: UpgradeId, value: number): string {

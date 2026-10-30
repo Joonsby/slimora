@@ -27,6 +27,8 @@ const MONSTER_SCALE = 0.88;
 /** 텍스트 앵커용 슬라임 높이 (디자인 단위, 장식 포함) */
 const SLIME_TOP = 108;
 const BANNER_MS = 1200;
+/** 용병 표시 폭 (디자인 단위) */
+const ALLY_WIDTH: Record<string, number> = { slime: 62, bat: 68, golem: 54, dragon: 70 };
 /** 배경 그림을 굽는 배율의 상한 — 큰 화면에서도 메모리를 지킨다 */
 const MAX_BG_RES = 2.5;
 
@@ -44,6 +46,8 @@ export class BattleScene extends Phaser.Scene {
   private monsterDef: MonsterDef | null = null;
   private monsterSeq = 0;
   private monsterIdle: Phaser.Tweens.Tween | null = null;
+  /** 슬라임 위를 떠다니는 용병 (편성 순서) */
+  private allies: Phaser.GameObjects.Image[] = [];
   private sky!: Phaser.GameObjects.Rectangle;
   private backdrop!: Phaser.GameObjects.Image;
   private ground!: Phaser.GameObjects.Image;
@@ -148,6 +152,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.startIdle();
     this.startAmbient();
+    this.syncAllies();
   }
 
   /** 터지는 입자. 크기 · 속도가 화면 배율을 따르므로 배치가 바뀔 때마다 새로 만든다 */
@@ -290,6 +295,7 @@ export class BattleScene extends Phaser.Scene {
           this.refreshSlimeLook();
           this.slime.root.setAlpha(1);
           this.startIdle();
+          this.syncAllies();
           this.queueBanner(`스테이지 ${e.stageId} ${e.mode === 'challenge' ? '도전' : '사냥'}`, '#ffffff');
           break;
         case 'monsterSpawned':
@@ -360,6 +366,18 @@ export class BattleScene extends Phaser.Scene {
         case 'evolved':
           this.playEvolution(e.form);
           break;
+        case 'partyChanged':
+          this.syncAllies();
+          break;
+        case 'allyAttack':
+          this.allyShot(e.index);
+          break;
+        case 'gemsGained':
+          this.texts.show(this.layout.w / 2, this.layout.h * 0.46, `보석 +${e.amount}`, { color: '#8ff0ff', size: this.px(24), pop: true });
+          break;
+        case 'rebirth':
+          this.playRebirth(e.count, e.essence);
+          break;
         case 'burnApplied':
           break;
       }
@@ -371,6 +389,7 @@ export class BattleScene extends Phaser.Scene {
     let style = { color: '#ffffff', size: this.px(21), pop: false };
     let text = String(e.amount);
     if (e.source === 'burn') style = { color: '#ff9a3c', size: this.px(16), pop: false };
+    else if (e.source === 'ally') style = { color: '#8fe9ff', size: this.px(17), pop: false };
     else if (e.heavy) {
       style = { color: '#ff3b3b', size: this.px(32), pop: true };
       text = `${e.amount}!!`;
@@ -527,6 +546,18 @@ export class BattleScene extends Phaser.Scene {
     this.queueBanner(`${form?.name ?? '진화'}!`, '#ffd84a');
   }
 
+  /** 환생 연출 — 분홍 빛 · 겹 고리 · 빛 입자. 바로 뒤에 1 스테이지 전투가 열린다 */
+  private playRebirth(count: number, essence: number): void {
+    const { unit, groundY, slimeX, w, h } = this.layout;
+    this.cameras.main.flash(500, 255, 214, 236);
+    this.ring(slimeX, groundY - 50 * unit, 0xff8fc8);
+    this.time.delayedCall(180, () => this.ring(slimeX, groundY - 50 * unit, 0xffffff));
+    this.time.delayedCall(360, () => this.ring(w / 2, h * 0.36, 0x5ee4ff));
+    this.burst?.setParticleTint(0xff8fc8);
+    this.burst?.explode(36, slimeX, groundY - 50 * unit);
+    this.queueBanner(`환생 ${count}회째! 정수 +${essence}`, '#ffb3d9');
+  }
+
   private flash(side: Side): void {
     if (side === 'slime') {
       this.slime.flash();
@@ -630,6 +661,59 @@ export class BattleScene extends Phaser.Scene {
       duration: 240,
       ease: 'Quad.easeIn',
       onComplete: () => sprite.destroy(),
+    });
+  }
+
+  // ── 용병 ────────────────────────────────────────────────
+
+  /** 편성이 바뀌거나 배치가 바뀌면 다시 놓는다 */
+  private syncAllies(): void {
+    for (const a of this.allies) {
+      this.tweens.killTweensOf(a);
+      a.destroy();
+    }
+    const { config } = this.session;
+    this.allies = this.session.getProgress().mercenaries.party.flatMap((id, i) => {
+      const def = config.mercenaries.find((m) => m.id === id);
+      if (!def || !this.textures.exists(KEY.mercenary(id))) return [];
+      const { x, y } = this.allyPos(i);
+      const img = this.add.image(x, y, KEY.mercenary(id)).setDepth(DEPTH.slime + 1);
+      const want = (ALLY_WIDTH[def.look.preset] ?? 60) * this.layout.unit;
+      img.setScale(want / img.width);
+      this.tweens.add({ targets: img, y: y - 7 * this.layout.unit, duration: 800 + i * 140, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: i * 300 });
+      return [img];
+    });
+  }
+
+  private allyPos(index: number): { x: number; y: number } {
+    const { unit, groundY, slimeX } = this.layout;
+    const spots = [
+      { x: slimeX - 50 * unit, y: groundY - 158 * unit },
+      { x: slimeX + 48 * unit, y: groundY - 176 * unit },
+    ];
+    const spot = spots[index] ?? { x: slimeX, y: groundY - 200 * unit };
+    return { x: Math.max(34 * unit, spot.x), y: spot.y };
+  }
+
+  /** 지원 공격 — 몬스터 쪽으로 살짝 뛰며 빛 구슬을 쏜다 */
+  private allyShot(index: number): void {
+    const ally = this.allies[index];
+    const target = this.monster;
+    if (!ally || !target) return;
+    const { unit, monsterX, groundY } = this.layout;
+    this.tweens.add({ targets: ally, x: ally.x + 12 * unit, duration: 90, yoyo: true, ease: 'Quad.easeOut' });
+    const orb = this.add.image(ally.x, ally.y, KEY.dot).setTint(0x8fe9ff).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.fx).setScale((22 * unit) / 64);
+    this.tweens.add({
+      targets: orb,
+      x: monsterX - 20 * unit,
+      y: groundY - 60 * unit,
+      duration: 180,
+      ease: 'Quad.easeIn',
+      onComplete: () => {
+        orb.destroy();
+        this.sparkBurst?.setParticleTint(0x8fe9ff);
+        this.sparkBurst?.explode(4, monsterX - 24 * unit, groundY - 60 * unit);
+      },
     });
   }
 

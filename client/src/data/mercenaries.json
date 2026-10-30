@@ -1,0 +1,10 @@
+[
+  { "id": "pip", "name": "꼬마 박쥐 피프", "rarity": "common", "look": { "preset": "bat", "tint": "#b48cff" }, "support": { "power": 0.25, "intervalMs": 1600 }, "passive": { "stat": "attack", "value": 0.03 } },
+  { "id": "pebble", "name": "조약돌 골렘", "rarity": "common", "look": { "preset": "golem", "tint": "#c2b59b" }, "support": { "power": 0.35, "intervalMs": 2400 }, "passive": { "stat": "maxHp", "value": 0.05 } },
+  { "id": "ember", "name": "아기 불도마뱀", "rarity": "common", "look": { "preset": "dragon", "tint": "#ffa65c" }, "support": { "power": 0.3, "intervalMs": 2000 }, "passive": { "stat": "gold", "value": 0.04 } },
+  { "id": "drop", "name": "물방울 슬라임", "rarity": "common", "look": { "preset": "slime", "tint": "#8fd3ff" }, "support": { "power": 0.2, "intervalMs": 1400 }, "passive": { "stat": "maxHp", "value": 0.04 } },
+  { "id": "shade", "name": "그림자 박쥐", "rarity": "rare", "look": { "preset": "bat", "tint": "#5a43a8" }, "support": { "power": 0.45, "intervalMs": 1500 }, "passive": { "stat": "critChance", "value": 0.02 } },
+  { "id": "moss", "name": "이끼 골렘", "rarity": "rare", "look": { "preset": "golem", "tint": "#7fae5a" }, "support": { "power": 0.55, "intervalMs": 2400 }, "passive": { "stat": "damageReduction", "value": 0.04 } },
+  { "id": "wyvern", "name": "불꽃 와이번", "rarity": "rare", "look": { "preset": "dragon", "tint": "#ff5a3d" }, "support": { "power": 0.5, "intervalMs": 1800 }, "passive": { "stat": "attack", "value": 0.06 } },
+  { "id": "goldy", "name": "황금 슬라임", "rarity": "legendary", "look": { "preset": "slime", "tint": "#ffd84a" }, "support": { "power": 0.8, "intervalMs": 1600 }, "passive": { "stat": "gold", "value": 0.15 } }
+]

@@ -1,0 +1,6 @@
+[
+  { "id": "might", "name": "용병의 힘", "stat": "attack", "perLevel": 0.1, "maxLevel": null, "cost": { "base": 1, "growth": 1.45 } },
+  { "id": "jelly", "name": "말랑한 몸", "stat": "maxHp", "perLevel": 0.1, "maxLevel": null, "cost": { "base": 1, "growth": 1.45 } },
+  { "id": "greed", "name": "황금 젤리", "stat": "gold", "perLevel": 0.15, "maxLevel": null, "cost": { "base": 2, "growth": 1.5 } },
+  { "id": "dream", "name": "깊은 낮잠", "stat": "offlineHours", "perLevel": 1, "maxLevel": 4, "cost": { "base": 3, "growth": 2 } }
+]

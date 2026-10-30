@@ -43,8 +43,13 @@ describe('저장 데이터', () => {
         slime: { upgrades: { attack: 9, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 }, form: null, unlockedForms: [] },
         stage: { highestCleared: 1, current: 1, mode: 'farm', autoAdvance: false },
         lifetime: { kills: { bat: 28, golem: 9, fire: 0 }, goldEarned: 166, deaths: 1 },
+        prestige: { count: 0, essence: 0, legacy: { might: 0, jelly: 0, greed: 0, dream: 0 }, bestStage: 0 },
+        gems: 100,
+        mercenaries: { owned: {}, party: [] },
+        daily: { day: '', adGems: 0 },
+        purchases: { owned: [], orders: [] },
       },
-      settings: { battleSpeed: 3 },
+      settings: { battleSpeed: 3, sound: true, tutorial: [] },
     });
   });
 
@@ -71,6 +76,11 @@ describe('저장 데이터', () => {
       slime: { upgrades: { attack: 0, maxHp: 0, critChance: 0 }, absorption: { bat: 0, golem: 0, fire: 0 }, form: null, unlockedForms: [] },
       stage: { highestCleared: last, current: last, mode: 'farm', autoAdvance: true },
       lifetime: { kills: { bat: 3, golem: 0, fire: 0 }, goldEarned: 0, deaths: 2 },
+      prestige: { count: 0, essence: 0, legacy: { might: 0, jelly: 0, greed: 0, dream: 0 }, bestStage: 0 },
+      gems: 100,
+      mercenaries: { owned: {}, party: [] },
+      daily: { day: '', adGems: 0 },
+      purchases: { owned: [], orders: [] },
     });
   });
 
@@ -114,6 +124,40 @@ describe('저장 데이터', () => {
     expect(slime.form).toBe('iron');
     expect(slime.unlockedForms).toEqual(['vampire', 'iron']);
     expect(normalizeProgress({ slime: { form: 'ghost' } }, cfg).slime).toMatchObject({ form: null, unlockedForms: [] });
+  });
+
+  it('v3 저장(환생 이전)을 v4 로 올려 읽는다 — 환생 0회, 정수 0', () => {
+    const data = newSaveData(cfg, 0, 'v3');
+    const { prestige, ...v3progress } = data.progress;
+    void prestige;
+    const v3 = { ...toEnvelope(data, cfg, 0), schemaVersion: 3, data: { ...data, progress: v3progress } };
+    expect(restoreSaveData(v3, cfg)?.progress.prestige).toEqual({ count: 0, essence: 0, legacy: { might: 0, jelly: 0, greed: 0, dream: 0 }, bestStage: 0 });
+  });
+
+  it('v4 저장(용병 이전)을 v5 로 — 시작 선물 보석, 빈 용병단', () => {
+    const data = newSaveData(cfg, 0, 'v4');
+    const { gems, mercenaries, daily, ...v4progress } = data.progress;
+    void gems;
+    void mercenaries;
+    void daily;
+    const v4 = { ...toEnvelope(data, cfg, 0), schemaVersion: 4, data: { ...data, progress: v4progress } };
+    expect(restoreSaveData(v4, cfg)?.progress).toMatchObject({ gems: 100, mercenaries: { owned: {}, party: [] }, daily: { day: '', adGems: 0 } });
+  });
+
+  it('용병은 모르는 것 · 가지지 않은 편성을 버리고 최대 레벨을 넘지 않는다', () => {
+    const m = normalizeProgress({ mercenaries: { owned: { pip: 99, ghost: 3, moss: 0 }, party: ['moss', 'pip', 'pip', 'ghost'] } }, cfg).mercenaries;
+    expect(m).toEqual({ owned: { pip: 10 }, party: ['pip'] });
+  });
+
+  it('결제 기록 — 모르는 상품 · 여러 번 사는 상품은 owned 에서 버린다', () => {
+    const orders = [{ id: 'o1', sku: 'gems_300' }, 'o2', { id: 'o3', sku: 'ghost' }, { id: 4, sku: 'gems_300' }, { id: 'o5', sku: 'ad_pass', extra: 1 }];
+    const p = normalizeProgress({ purchases: { owned: ['ad_pass', 'gems_300', 'ghost', 'ad_pass'], orders } }, cfg).purchases;
+    expect(p).toEqual({ owned: ['ad_pass'], orders: [{ id: 'o1', sku: 'gems_300' }, { id: 'o5', sku: 'ad_pass' }] });
+  });
+
+  it('영구 강화는 모르는 항목을 버리고 최대 레벨을 넘지 않는다', () => {
+    const p = normalizeProgress({ prestige: { count: 2.5, essence: -3, legacy: { might: 4, dream: 99, ghost: 3 }, bestStage: 99 } }, cfg).prestige;
+    expect(p).toEqual({ count: 2, essence: 0, legacy: { might: 4, jelly: 0, greed: 0, dream: 4 }, bestStage: cfg.stages.length });
   });
 
   it('클리어하지 않은 스테이지를 사냥 중이라고 적혀 있으면 도전으로 바꾼다', () => {

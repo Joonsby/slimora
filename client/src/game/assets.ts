@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { sceneArt, type SceneArt } from '../art/backgrounds';
 import { monsterSprite } from '../art/monsters';
-import { slimeLayers, type SlimePreset } from '../art/slime';
+import { slimeLayers, slimePortrait, SLIME_H, SLIME_W, type SlimePreset } from '../art/slime';
 import { dataUrl, linear, radial, svgDoc } from '../art/svg';
 import type { GameConfig } from '../core/model/config';
 
@@ -17,6 +17,7 @@ export const KEY = {
   slimeBack: (p: SlimePreset) => `slime-back-${presetKey(p)}`,
   slimeFront: (p: SlimePreset) => `slime-front-${presetKey(p)}`,
   monster: (id: string) => `mon-${id}`,
+  mercenary: (id: string) => `merc-${id}`,
   backdrop: (scene: string) => `bg-${scene}-back`,
   ground: (scene: string) => `bg-${scene}-ground`,
   dot: 'fx-dot',
@@ -57,6 +58,10 @@ export function queueCoreTextures(scene: Phaser.Scene, config: GameConfig, res: 
     const sprite = monsterSprite(def.visual.preset, def.visual.tint, res);
     queue(scene, KEY.monster(def.id), sprite.svg);
     meta.set(def.id, { width: sprite.width, height: sprite.height, footY: sprite.footY, hover: sprite.hover });
+  }
+  for (const def of config.mercenaries) {
+    const sprite = def.look.preset === 'slime' ? { svg: slimePortrait(def.look.tint, null, res), width: SLIME_W, height: SLIME_H } : monsterSprite(def.look.preset, def.look.tint, res);
+    queue(scene, KEY.mercenary(def.id), sprite.svg);
   }
   queue(scene, KEY.dot, svgDoc(64, 64, `<defs>${radial('d', [[0, '#fff'], [0.35, '#fff', 0.8], [1, '#fff', 0]])}</defs><circle cx="32" cy="32" r="32" fill="url(#d)"/>`));
   queue(

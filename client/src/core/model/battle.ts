@@ -70,12 +70,28 @@ export interface BattleState {
   bossEndsAt: number | null;
   rng: RngState;
   seq: number;
+  /** 처치 골드 배율 (영구 강화) */
+  goldMul: number;
+  /** 함께 싸우는 용병. 싸우는 중에만 공격한다 */
+  allies: AllyState[];
+}
+
+export interface AllyStats {
+  id: string;
+  /** 슬라임 공격력에 곱하는 비율 */
+  power: number;
+  intervalMs: number;
+}
+
+export interface AllyState extends AllyStats {
+  nextAttackAt: number;
 }
 
 export type BattleEvent =
   | { type: 'monsterSpawned'; at: number; defId: MonsterId; seq: number; maxHp: number; boss: boolean }
   | { type: 'attack'; at: number; by: Side }
-  | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn'; reducedBy: number; heavy?: boolean }
+  | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn' | 'ally'; reducedBy: number; heavy?: boolean }
+  | { type: 'allyAttack'; at: number; index: number; id: string }
   | { type: 'heal'; at: number; to: Side; amount: number; source: 'lifesteal' | 'regen' }
   | { type: 'burnApplied'; at: number; to: Side; stacks: number }
   | { type: 'heavyWarning'; at: number; by: Side }

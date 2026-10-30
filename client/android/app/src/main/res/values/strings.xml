@@ -4,4 +4,6 @@
     <string name="title_activity_main">슬라임 용병단</string>
     <string name="package_name">com.slimora.game</string>
     <string name="custom_url_scheme">com.slimora.game</string>
+    <!-- 원스토어 개발자센터 → 앱 → 라이선스 관리의 공개 키. 비어 있으면 결제가 꺼진다 -->
+    <string name="onestore_license_key" translatable="false"></string>
 </resources>

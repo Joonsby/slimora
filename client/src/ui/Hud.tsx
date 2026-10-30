@@ -9,16 +9,18 @@ import { BATTLE_SPEEDS } from '../session/settings';
 import { openSheet } from '../store/gameStore';
 import { formatNumber } from './format';
 import { useGame, useGameContext } from './GameContext';
-import { IconAuto, IconCaret, IconCoin, IconCrown, IconFlag, IconSpeed } from './icons';
+import { IconAuto, IconCaret, IconCoin, IconCrown, IconFlag, IconGem, IconSound, IconSpeed, IconTrophy } from './icons';
 import { slimeImage } from './portraits';
 
 /** 전투 화면 위에 얹는 HUD. 오른쪽 위는 토스 닫기 버튼 자리라 비워 둔다 */
 export function Hud() {
-  const { session, store, config } = useGameContext();
+  const { session, store, config, leaderboard, shop } = useGameContext();
   const gold = useGame((s) => s.progress.gold);
+  const gems = useGame((s) => s.progress.gems);
   const hud = useGame((s) => s.hud);
   const autoAdvance = useGame((s) => s.progress.stage.autoAdvance);
   const speed = useGame((s) => s.settings.battleSpeed);
+  const sound = useGame((s) => s.settings.sound);
   const level = useGame((s) => getSlimeLevel(s.progress.slime.absorption, config));
   const look = useSlimeLook();
 
@@ -36,20 +38,38 @@ export function Hud() {
           </span>
           <IconCaret size={16} className="caret" />
         </button>
+        {leaderboard && (
+          <button className="hud-btn icon trophy" onClick={() => void leaderboard.open()} aria-label="랭킹">
+            <IconTrophy size={20} />
+          </button>
+        )}
+        <button className={`hud-btn icon ${sound ? 'on' : ''}`} onClick={() => session.setSound(!sound)} aria-pressed={sound} aria-label={sound ? '소리 끄기' : '소리 켜기'}>
+          <IconSound size={18} muted={!sound} />
+        </button>
       </div>
       <div className="hud-row">
-        <div className="res gold" aria-label={`골드 ${gold}`}>
-          <IconCoin size={22} />
-          <span>{formatNumber(gold)}</span>
+        <div className="res wallet">
+          <span className="gold" aria-label={`골드 ${gold}`}>
+            <IconCoin size={20} />
+            {formatNumber(gold)}
+          </span>
+          <span className="gems" role="button" aria-label={`보석 ${gems}, ${shop ? '상점' : '용병'} 열기`} onClick={() => openSheet(store, shop ? 'shop' : 'mercenary')}>
+            <IconGem size={18} />
+            {formatNumber(gems)}
+            {shop && <b className="gem-plus">+</b>}
+          </span>
         </div>
         <button className="res level" onClick={() => openSheet(store, 'absorb')} aria-label={`슬라임 레벨 ${level}, 흡수 보기`}>
           <img src={slimeImage(look.color, look.preset)} alt="" />
-          <span>Lv {level}</span>
+          <span>
+            <small className="lv-prefix">Lv </small>
+            {level}
+          </span>
         </button>
         <span className="spacer" />
         <button className={`hud-btn ${autoAdvance ? 'on' : ''}`} onClick={() => session.setAutoAdvance(!autoAdvance)} aria-pressed={autoAdvance} aria-label="자동진행">
           <IconAuto size={15} />
-          자동
+          <span className="hud-btn-text">자동</span>
         </button>
         <button className={`hud-btn ${speed > 1 ? 'on' : ''}`} onClick={() => session.setBattleSpeed(nextSpeed)} aria-label={`전투 속도 ${speed}배`}>
           <IconSpeed size={13} />×{speed}

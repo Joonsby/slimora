@@ -1,0 +1,7 @@
+[
+  { "sku": "gems_300", "name": "보석 한 줌", "kind": "consumable", "gems": 300, "bonus": 0, "essence": 0, "adPass": false, "priceKrw": 1100, "desc": "보석 300개" },
+  { "sku": "gems_1100", "name": "보석 주머니", "kind": "consumable", "gems": 1100, "bonus": 100, "essence": 0, "adPass": false, "priceKrw": 3300, "desc": "보석 1,000개 + 보너스 100" },
+  { "sku": "gems_3800", "name": "보석 상자", "kind": "consumable", "gems": 3800, "bonus": 500, "essence": 0, "adPass": false, "priceKrw": 9900, "desc": "보석 3,300개 + 보너스 500" },
+  { "sku": "starter_pack", "name": "스타터 팩", "kind": "once", "gems": 1000, "bonus": 0, "essence": 5, "adPass": false, "priceKrw": 2200, "desc": "보석 1,000개 + 환생 정수 5" },
+  { "sku": "ad_pass", "name": "광고 패스", "kind": "once", "gems": 0, "bonus": 0, "essence": 0, "adPass": true, "priceKrw": 5500, "desc": "오프라인 2배 · 광고 보석을 광고 없이 (영구)" }
+]

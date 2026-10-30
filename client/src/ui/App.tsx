@@ -3,10 +3,15 @@ import { BattleLog } from './BattleLog';
 import { BattleView } from './BattleView';
 import { BottomMenu } from './BottomMenu';
 import { EvolveSheet } from './EvolveSheet';
+import { MercenarySheet } from './MercenarySheet';
 import { useGame } from './GameContext';
 import { ChallengeButton, Hud } from './Hud';
+import { OfflineRewardModal } from './OfflineRewardModal';
+import { RebirthSheet } from './RebirthSheet';
+import { ShopSheet } from './ShopSheet';
 import { slimeImage } from './portraits';
 import { StageSheet } from './StageSheet';
+import { Tutorial } from './Tutorial';
 import { UpgradeSheet } from './UpgradeSheet';
 
 export function App() {
@@ -33,6 +38,11 @@ export function App() {
       <StageSheet />
       <AbsorbSheet />
       <EvolveSheet />
+      <RebirthSheet />
+      <MercenarySheet />
+      <ShopSheet />
+      <Tutorial />
+      <OfflineRewardModal />
     </div>
   );
 }

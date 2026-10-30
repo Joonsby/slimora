@@ -37,6 +37,17 @@
         </provider>
     </application>
 
+    <!-- 원스토어 인앱결제: Android 11+ 에서 원스토어 서비스를 찾으려면 필요하다 -->
+    <queries>
+        <intent>
+            <action android:name="com.onestore.ipc.iap.IapService.ACTION" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="onestore" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
