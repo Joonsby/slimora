@@ -158,6 +158,8 @@ export class BattleScene extends Phaser.Scene {
           this.stageId = e.stageId;
           this.removeMonster(false);
           this.drawGround();
+          // 서버 저장을 불러오면 형태 · 흡수 색이 통째로 바뀐 채 새 전투가 열린다
+          this.refreshSlimeColor();
           this.slime.setAlpha(1);
           this.startIdle();
           this.queueBanner(`스테이지 ${e.stageId} ${e.mode === 'challenge' ? '도전' : '사냥'}`, '#ffffff');

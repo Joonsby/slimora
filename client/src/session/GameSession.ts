@@ -12,7 +12,7 @@ import type { Result } from '../core/result';
 import { seedFrom } from '../core/rng';
 import { deriveSlimeStats, sameCombatStats } from '../core/stats';
 import type { GameStore } from '../store/gameStore';
-import type { PlatformAdapter, SaveRepository } from './ports';
+import type { PlatformAdapter, SaveEnvelope, SaveRepository } from './ports';
 import { newSaveData, restoreSaveData, toEnvelope, type SaveData } from './saveData';
 import type { BattleSpeed } from './settings';
 
@@ -41,6 +41,7 @@ export const SAVE_INTERVAL_MS = 10_000;
 export class GameSession {
   private battle: BattleState | null = null;
   private readonly listeners = new Set<SessionListener>();
+  private readonly saveListeners = new Set<(envelope: SaveEnvelope) => void>();
   private readonly seed: number;
   private battleCount = 0;
   private meta: Pick<SaveData, 'installId' | 'createdAt'> = { installId: '', createdAt: 0 };
@@ -89,6 +90,7 @@ export class GameSession {
   dispose(): void {
     this.unsubscribeVisibility?.();
     this.listeners.clear();
+    this.saveListeners.clear();
   }
 
   /** Phaser update 에서 매 프레임 호출 */
@@ -165,17 +167,44 @@ export class GameSession {
   }
 
   async saveNow(): Promise<void> {
-    const { repo, platform, store, config } = this.deps;
-    const now = platform.now();
-    const { progress, settings } = store.getState();
+    const envelope = this.snapshot();
     this.dirty = false;
-    this.lastSavedAt = now;
+    this.lastSavedAt = envelope.savedAt;
     try {
-      await repo.save(toEnvelope({ ...this.meta, lastActiveAt: now, progress, settings }, config, now));
+      await this.deps.repo.save(envelope);
     } catch (e) {
       this.dirty = true;
       console.warn('저장 실패', e);
+      return;
     }
+    for (const listener of this.saveListeners) listener(envelope);
+  }
+
+  /** 기기에 저장할 때마다 불린다 (서버 저장이 따라 올린다) */
+  onSaved(listener: (envelope: SaveEnvelope) => void): () => void {
+    this.saveListeners.add(listener);
+    return () => this.saveListeners.delete(listener);
+  }
+
+  /** 지금 진행을 저장 형식으로 */
+  snapshot(): SaveEnvelope {
+    const { platform, store, config } = this.deps;
+    const now = platform.now();
+    const { progress, settings } = store.getState();
+    return toEnvelope({ ...this.meta, lastActiveAt: now, progress, settings }, config, now);
+  }
+
+  /** 다른 기기에서 더 진행한 저장으로 바꾸고 현재 스테이지를 처음부터 연다. 읽을 수 없는 저장이면 false */
+  adopt(envelope: SaveEnvelope): boolean {
+    const data = restoreSaveData(envelope, this.deps.config);
+    if (!data) return false;
+    this.meta = { installId: data.installId, createdAt: data.createdAt };
+    this.deps.store.setState({ progress: data.progress, settings: data.settings });
+    this.growth = [];
+    this.pausedUntil = 0;
+    this.emit([this.startBattle()]);
+    void this.saveNow();
+    return true;
   }
 
   /** 렌더링용 읽기 전용 진행 상태 (슬라임 색 등) */

@@ -718,7 +718,7 @@ SDK 는 **공식 문서를 확인한 뒤 별도 단계**에서 붙인다. 지금
 | 접점 | 지금 | SDK 단계 |
 |---|---|---|
 | `PlatformAdapter` | `WebPlatform` (Date.now · visibilitychange) | `TossPlatform` — 생명주기 이벤트 · 진동 등 |
-| `SaveRepository` | `LocalStorageSaveRepository` | 플랫폼 저장소가 있으면 그 구현, 아니면 서버 저장 |
+| `SaveRepository` | `LocalStorageSaveRepository` + 서버 저장 `CloudSync` · `HttpCloudSaveStore` (2026-10-29, 토스 앱 안에서만) | — |
 | 사용자 식별 | `installId` | 토스 사용자 키와 연결 |
 
 **SDK 단계에서 공식 문서로 확인할 것** (지금은 알 수 없으므로 가정하지 않는다)

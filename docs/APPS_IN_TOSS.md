@@ -54,7 +54,7 @@
 | 요건 | 근거 | 지금 | 할 일 |
 |---|---|---|---|
 | SDK 3.x 설치 · `npx ait init` · `apps-in-toss.config.ts` (`appName` · `brand.primaryColor` · `webBundleDir: 'dist'`) · 빌드에 `ait build` | D/documentation/integration/sdk-3.x · D/documentation/sdk/v3 | **반영 (2026-10-29)** — 3.9.0, `npm run build` 가 `client/slimora.ait` 생성. appName 은 임시 `slimora`, primaryColor `#0f9f75` | 콘솔에 앱을 등록한 뒤 `apps-in-toss.config.ts` 의 appName 을 같은 이름으로 바꾼다 |
-| 사용자 식별키를 받아 저장해야 게임이 시작된다 — 게임 전용 `getUserKeyForGame` (서버 · 동의 불필요, 앱 재설치 · 기기 변경에도 같은 키) | D/checklist/app-game · D/documentation/common/authentication/hash-key | `installId` 만 있음 | `TossPlatform` 에서 발급 · 저장 |
+| 사용자 식별키를 받아 저장해야 게임이 시작된다 — 게임 전용 `getUserKeyForGame` (서버 · 동의 불필요, 앱 재설치 · 기기 변경에도 같은 키) | D/checklist/app-game · D/documentation/common/authentication/hash-key | `installId` + 서버 저장 로그인에 `User.createAnonymousKeyAuthCode` (2026-10-29). 키를 받아야 시작하는 흐름은 아직 | 시작 전에 키를 받도록 할지 심사 기준 확인 |
 | 우측 상단 닫기(X) 버튼과 **게임 버튼이 겹치면 반려**. X 위치: `right + 10`, `top + 5`(iOS) / `top + 10`(Android) | D/documentation/common/screen/safe-area | **겹친다** — HUD 첫 줄 오른쪽에 골드 · 「도전 ▶」 | HUD 우측 상단을 비운다 |
 | Safe Area 침범 금지 (Dynamic Island 포함) | D/checklist/app-game | CSS `env(safe-area-inset-*)` 만 사용 | SDK `SafeArea` 값으로 교체 |
 | 인게임 화면 **풀스크린, 레터박스 금지** | D/checklist/app-game · D/design/consumer-ux-guide | `.app { max-width: 480px }` — 넓은 기기에서 좌우 여백 | 폭 제한 제거 또는 배경으로 채움 |
@@ -91,7 +91,7 @@
 |---|---|---|
 | ~~테마~~ | **① 로 결정 · 반영 (2026-10-28)** — UI 라이트, 전투 화면만 어둡게 | |
 | **사운드** | ① 효과음 몇 개 + On/Off ② 무음 유지 | ①. 체크리스트 첫 묶음이 사운드다. 구현 방법은 5장 |
-| **저장소** | ① localStorage 유지 ② SDK `Storage` ③ 서버 저장 | ① 또는 ② (아래). 서버는 인앱 결제 · 랭킹을 넣을 때 |
+| ~~저장소~~ | **① + ③ 으로 반영 (2026-10-29)** — 기기는 localStorage, 토스 앱 안에서는 서버(slimora-api)에도 | |
 
 저장소 사실관계 (D/documentation/common/file-storage/storage):
 
@@ -105,6 +105,11 @@
 
 **권장 (2026-10-28):** 첫 출시는 서버 없이 — 토스 앱 안에서는 SDK `Storage`, 일반 브라우저(개발)에서는 localStorage 로 저장한다.
 기기 변경 보존이 필요해지거나 인앱 결제를 넣을 때 식별키 기반 서버 저장을 추가한다.
+
+**반영 (2026-10-29):** 결제 · 광고 · 랭킹을 넣을 계획이라 서버 저장을 먼저 붙였다. 게임이 `User.createAnonymousKeyAuthCode()` 로 받은 일회용 코드를
+[slimora-api](https://github.com/Joonsby/slimora-api) 가 토스와 교환(mTLS)해 사용자 키를 얻고, 그 키로 저장본을 찾는다.
+기기 저장(localStorage)이 기준이고 서버는 다른 기기 · 재설치용 사본이다 — 시작할 때 비교해 누적 획득 골드가 많은 쪽을 남긴다.
+**토스 앱 안에서는 아직 확인하지 못했다** (로컬 서버 + 개발 로그인으로만 확인). 콘솔에서 외부 도메인 호출 허용이 필요한지도 확인할 것
 
 ---
 

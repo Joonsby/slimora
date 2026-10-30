@@ -27,7 +27,7 @@ npm run dev -- --host    # 같은 와이파이의 휴대폰에서 접속할 때
 
 | 명령 | 하는 일 |
 |---|---|
-| `npm test` | 단위 테스트 (Vitest, 85개) |
+| `npm test` | 단위 테스트 (Vitest, 115개) |
 | `npm run lint` | ESLint — 계층 간 의존 규칙도 여기서 검사한다 |
 | `npm run typecheck` | TypeScript 검사 (앱 · 도구 두 설정) |
 | `npm run build` | 타입 검사 후 `dist/` 로 빌드하고, 앱인토스 업로드용 `client/slimora.ait` 까지 만든다 |
@@ -85,6 +85,7 @@ Android Studio 에서 **Build > Generate Signed App Bundle / APK** 로 서명된
 | 테마 | 앱인토스 라이트 모드 기준 — UI 는 밝게, 전투 화면만 어두운 게임 아트 |
 | 화면 | 세로 모바일 레이아웃 (360px 까지 확인). 임시 그래픽은 도형으로 그린 텍스처 |
 | 저장 | localStorage. 10초 간격 + 클리어/실패 즉시 + 화면을 떠날 때 즉시. 체크섬 + 직전 저장본 백업 |
+| 서버 저장 | 토스 앱 안에서만 [slimora-api](https://github.com/Joonsby/slimora-api) 에도 올린다 — 최대 30초 간격 + 화면을 떠날 때 즉시. 기기 저장으로 먼저 시작하고 뒤에서 맞추며, 두 쪽이 다르면 누적 획득 골드가 많은 쪽을 남긴다. 원스토어 앱 · 브라우저는 기기 저장만 |
 | 테스트 | 전투 계산 · 진행 규칙 · 저장 · 세션 통합 · 밸런스 불변식 |
 
 ## 설계 대비 이번에 하지 않았거나 다르게 한 것
@@ -93,7 +94,7 @@ Android Studio 에서 **Build > Generate Signed App Bundle / APK** 로 서명된
 |---|---|
 | 밸런스 | 고대 화염룡은 설계 초안 수치로는 깰 수 없어 낮췄다 (GAME_DESIGN 5장). 전체 페이스는 Phase 8 |
 | 오프라인 보상 | Phase 7. 다만 저장에 `lastActiveAt` 을 이미 기록한다 |
-| 앱인토스 SDK | 3.9.0 설치 · `.ait` 빌드까지 (appName 은 임시 `slimora`). 식별키 · Safe Area 등 SDK 기능은 아직. 배포 준비 상태는 [docs/APPS_IN_TOSS.md](docs/APPS_IN_TOSS.md) |
+| 앱인토스 SDK | 3.9.0 설치 · `.ait` 빌드까지 (appName 은 임시 `slimora`). 서버 저장 로그인(`User.createAnonymousKeyAuthCode`)만 붙였고, Safe Area 등 나머지 SDK 기능은 아직. 배포 준비 상태는 [docs/APPS_IN_TOSS.md](docs/APPS_IN_TOSS.md) |
 
 ## 설정값 조정
 
@@ -126,8 +127,8 @@ client/src/
 ├─ data/          설정 JSON + 검증기
 ├─ session/       GameSession — 엔진 구동 · 커맨드 적용 · 스테이지 전환 · 저장 시점
 ├─ store/         Zustand 스토어 (React 가 읽는 상태)
-├─ persistence/   저장소 구현 (localStorage · 메모리)
-├─ platform/      시계 · 화면 가시성 (앱인토스 SDK 를 붙일 자리)
+├─ persistence/   저장소 구현 (localStorage · 메모리 · 서버 저장 API)
+├─ platform/      시계 · 화면 가시성 · 토스 로그인 코드 · 안드로이드 뒤로가기
 ├─ game/          Phaser 전투 장면 (계산 없이 그리기만)
 ├─ ui/            React 화면
 ├─ dev/           자동 플레이어 (밸런스 점검용)
@@ -146,6 +147,14 @@ client/src/
 ['slime-merc:save', 'slime-merc:save:prev'].forEach((k) => localStorage.removeItem(k));
 ```
 
+토스 앱 안에서는 같은 저장을 서버에도 둔다 (`client/src/session/cloudSync.ts`). 개발 서버에서 토스 없이 시험하려면
+slimora-api 를 `DEV_AUTH=true` · `CORS_ORIGINS=http://localhost:5173` 으로 띄우고(기본 포트 3000), 그 서버를 가리키도록 `client/.env.development.local` 에 아래를 넣는다 (운영 빌드에는 들어가지 않는다).
+
+```
+VITE_SAVE_API_URL=http://localhost:3000
+VITE_SAVE_DEV_USER=tester
+```
+
 ## 변경 이력
 
 | 날짜 | 내용 |
@@ -156,3 +165,4 @@ client/src/
 | 2026-10-28 | 흡수 · 특성 · 슬라임 레벨 (Phase 5A), 저장 형식 v2, UI 라이트 테마 |
 | 2026-10-28 | 앱인토스 콘솔용 이미지 (로고 2종 · 썸네일 · 스크린샷 세로 4장 × 2규격 · 가로 1장)와 생성 스크립트 |
 | 2026-10-29 | 진화 3형태 (Phase 5B) · 15 스테이지 · 보스 2종 (Phase 6), 저장 형식 v3, Capacitor 안드로이드 프로젝트 |
+| 2026-10-29 | 안드로이드 아이콘 · 스플래시, 앱 ID `com.slimora.game` 확정, 토스 로그인 기반 서버 저장 |
