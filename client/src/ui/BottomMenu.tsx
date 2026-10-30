@@ -1,10 +1,12 @@
+import type { ReactNode } from 'react';
 import { anyFormAvailable } from '../core/progression/forms';
 import { getUpgradeCost, isMaxLevel } from '../core/progression/upgrades';
-import { openSheet } from '../store/gameStore';
+import { openSheet, type Sheet } from '../store/gameStore';
 import { useGame, useGameContext } from './GameContext';
+import { IconAbsorb, IconEvolve, IconMap, IconSword } from './icons';
 
 export function BottomMenu() {
-  const { store, config } = useGameContext();
+  const { config } = useGameContext();
   const canUpgrade = useGame((s) =>
     config.upgrades.some((def) => {
       const level = s.progress.slime.upgrades[def.id] ?? 0;
@@ -15,14 +17,22 @@ export function BottomMenu() {
 
   return (
     <nav className="menu">
-      <button onClick={() => openSheet(store, 'upgrade')}>
-        강화{canUpgrade && <span className="dot" aria-label="강화 가능" />}
-      </button>
-      <button onClick={() => openSheet(store, 'stage')}>사냥터</button>
-      <button onClick={() => openSheet(store, 'absorb')}>흡수</button>
-      <button onClick={() => openSheet(store, 'evolve')}>
-        진화{canEvolve && <span className="dot" aria-label="진화 가능" />}
-      </button>
+      <MenuButton sheet="upgrade" label="강화" tone="orange" icon={<IconSword size={28} />} badge={canUpgrade} />
+      <MenuButton sheet="stage" label="사냥터" tone="green" icon={<IconMap size={28} />} />
+      <MenuButton sheet="absorb" label="흡수" tone="purple" icon={<IconAbsorb size={28} />} />
+      <MenuButton sheet="evolve" label="진화" tone="gold" icon={<IconEvolve size={28} />} badge={canEvolve} />
     </nav>
+  );
+}
+
+function MenuButton({ sheet, label, tone, icon, badge }: { sheet: Exclude<Sheet, 'none'>; label: string; tone: string; icon: ReactNode; badge?: boolean }) {
+  const { store } = useGameContext();
+  const active = useGame((s) => s.sheet === sheet);
+  return (
+    <button className={`menu-item tone-${tone} ${active ? 'active' : ''}`} onClick={() => openSheet(store, active ? 'none' : sheet)}>
+      <span className="menu-icon">{icon}</span>
+      <span className="menu-label">{label}</span>
+      {badge && <span className="dot" aria-label={`${label} 가능`} />}
+    </button>
   );
 }

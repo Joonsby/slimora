@@ -58,6 +58,7 @@ export function arena(opts: ArenaOptions = {}): GameConfig {
       id: 1,
       chapter: 1,
       name: '시험장',
+      scene: 'duskCave',
       spawns: [{ monster: 'dummy', weight: 1 }],
       killsToClear: opts.killsToClear ?? 3,
       overrides: { hp: opts.hp ?? 100, atk: opts.atk ?? 10, goldPerKill: opts.gold ?? 5 },

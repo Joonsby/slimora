@@ -95,7 +95,7 @@ describe('GameSession', () => {
   });
 
   it('도전에 실패하면 최고 클리어 스테이지 사냥으로 후퇴한다', async () => {
-    const deadly = { id: 2, chapter: 1, name: '함정', spawns: [{ monster: 'dummy', weight: 1 }], killsToClear: 1, overrides: { hp: 99_999, atk: 99_999, goldPerKill: 1 } };
+    const deadly = { id: 2, chapter: 1, name: '함정', scene: 'duskCave', spawns: [{ monster: 'dummy', weight: 1 }], killsToClear: 1, overrides: { hp: 99_999, atk: 99_999, goldPerKill: 1 } };
     const { session, store, events, advance } = setup(arena({ killsToClear: 1, hp: 10, atk: 1, extraStages: [deadly] }));
     await session.start();
     advance(10_000);

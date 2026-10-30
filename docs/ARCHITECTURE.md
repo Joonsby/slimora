@@ -108,7 +108,8 @@ slime-mercenaries/
 │  │  ├─ store/gameStore.ts       # zustand/vanilla 스토어
 │  │  ├─ persistence/             # LocalStorageSaveRepository (체크섬 · 백업 칸) · MemorySaveRepository · checksum
 │  │  ├─ platform/WebPlatform.ts  # Date.now · visibilitychange. SDK 단계에서 TossPlatform 추가
-│  │  ├─ game/                    # Phaser: createGame · BattleScene · textures (임시 도형) · DamageTextPool · slimeColor (흡수 색)
+│  │  ├─ art/                     # SVG 아트: slime (층) · monsters · backgrounds (장면 15종) · slimeColor (흡수 색). game · ui 가 같이 쓴다
+│  │  ├─ game/                    # Phaser: createGame (기기 픽셀) · BattleScene · assets (SVG → 텍스처) · SlimeView · DamageTextPool
 │  │  ├─ ui/                      # React: App · Hud · BattleView · BattleLog · BottomMenu · 시트 · battleLogFeed
 │  │  ├─ dev/autoPlay.ts          # 자동 플레이어 (밸런스 점검 · 불변식 테스트)
 │  │  └─ testing/fixtures.ts      # 테스트 픽스처

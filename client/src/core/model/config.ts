@@ -46,6 +46,8 @@ export interface StageDef {
   id: StageId;
   chapter: number;
   name: string;
+  /** 전투 배경 장면 키 (art/backgrounds). 모르는 키면 기본 장면 */
+  scene: string;
   spawns: { monster: MonsterId; weight: number }[];
   killsToClear: number;
   /** 처치 목표를 채우면 등장한다. 등장 순간부터 제한시간이 흐른다 */

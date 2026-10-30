@@ -67,6 +67,7 @@ export function validateConfig(cfg: GameConfig): string[] {
     const p = `stages[${i}]`;
     check(s.id === i + 1, `${p}.id: 1부터 빈틈없이 이어져야 함 (${s.id})`);
     posInt(s.chapter, `${p}.chapter`);
+    check(typeof s.scene === 'string' && s.scene.length > 0, `${p}.scene: 비어 있음`);
     posInt(s.killsToClear, `${p}.killsToClear`);
     check(s.spawns.length > 0, `${p}.spawns: 비어 있음`);
     for (const sp of s.spawns) {
