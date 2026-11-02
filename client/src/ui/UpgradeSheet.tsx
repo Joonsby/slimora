@@ -25,7 +25,7 @@ export function UpgradeSheet() {
 
   return (
     <Sheet open={open} title="강화" icon={<IconSword size={24} />} onClose={() => openSheet(store, 'none')}>
-      <p className="hint">골드로 슬라임을 단련합니다. 버튼을 길게 누르면 연속으로 강화합니다. 공격력 · 최대 HP 는 일정 레벨마다 크게 돌파합니다.</p>
+      <p className="hint">골드로 슬라임을 단련합니다. 버튼을 길게 누르면 연속으로 강화합니다. 공격력 · 최대 HP 는 일정 레벨마다 돌파해 능력치가 크게 뛰어오릅니다.</p>
       <div className="card-list">
         {config.upgrades.map((def) => {
           const level = levels[def.id] ?? 0;
@@ -50,7 +50,7 @@ export function UpgradeSheet() {
                 </span>
                 {breakAt !== null && def.milestone && (
                   <span className={`milestone-hint ${breakAt === level + 1 ? 'ready' : ''}`}>
-                    {breakAt === level + 1 ? `다음 강화에서 돌파! ×${def.milestone.multiplier}` : `${breakAt - level}레벨 뒤 돌파 ×${def.milestone.multiplier}`}
+                    {breakAt === level + 1 ? `돌파 직전 ×${def.milestone.multiplier}` : `${breakAt - level}레벨 뒤 ×${def.milestone.multiplier}`}
                   </span>
                 )}
               </div>

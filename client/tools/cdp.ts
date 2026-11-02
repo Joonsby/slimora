@@ -13,6 +13,7 @@ type Json = Record<string, unknown>;
 export class Cdp {
   private seq = 0;
   private readonly pending = new Map<number, (result: Json) => void>();
+  private readonly listeners = new Map<string, (params: Json) => void>();
   readonly problems: string[] = [];
 
   private constructor(private readonly ws: WebSocket) {
@@ -21,6 +22,8 @@ export class Cdp {
       if (msg.id && this.pending.has(msg.id)) {
         this.pending.get(msg.id)!(msg.result ?? {});
         this.pending.delete(msg.id);
+      } else if (msg.method && this.listeners.has(msg.method)) {
+        this.listeners.get(msg.method)!(msg.params ?? {});
       } else if (msg.method === 'Runtime.exceptionThrown') {
         this.problems.push(JSON.stringify(msg.params).slice(0, 300));
       } else if (msg.method === 'Runtime.consoleAPICalled' && (msg.params as { type?: string }).type === 'error') {
@@ -48,6 +51,12 @@ export class Cdp {
       await sleep(200);
     }
     throw new Error('Chrome DevTools 에 연결하지 못했다');
+  }
+
+  /** 이벤트 하나에 처리기 하나. null 이면 뗀다 */
+  on(method: string, handler: ((params: Json) => void) | null): void {
+    if (handler) this.listeners.set(method, handler);
+    else this.listeners.delete(method);
   }
 
   send(method: string, params: Json = {}): Promise<Json> {

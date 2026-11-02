@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>그래픽 이미지 1024×578</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=block" />
+    <style>
+      html, body { margin: 0; }
+      svg { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <script>
+      // 썸네일(1932×828)과 같은 장면을 16:9 가까운 비율로 — 위쪽에 제목, 아래쪽에 전투
+      const W = 1024, H = 578, GROUND = 470;
+      const stalactites = [[90, 60], [180, 36], [560, 74], [640, 44], [880, 66], [980, 40]]
+        .map(([x, h]) => `<path d="M${x - 26} 0 L${x} ${h} L${x + 26} 0 Z" fill="#221D44"/>`).join('');
+      const rocks = [[90, 18], [470, 14], [990, 20]]
+        .map(([x, r]) => `<ellipse cx="${x}" cy="${GROUND + 4}" rx="${r * 1.6}" ry="${r * 0.7}" fill="#2B2552"/>`).join('');
+      const title = (x, y, text, size, fill, stroke) =>
+        `<text x="${x}" y="${y}" font-family="Jua, 'Malgun Gothic', sans-serif" font-size="${size}" fill="${fill}" stroke="#141022" stroke-width="${stroke}" paint-order="stroke" stroke-linejoin="round">${text}</text>`;
+      document.body.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F2A5E"/><stop offset="1" stop-color="#1B1838"/></linearGradient>
+            <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3E3770"/><stop offset="1" stop-color="#2A2450"/></linearGradient>
+            <radialGradient id="glowMint"><stop offset="0" stop-color="#4FD6A8" stop-opacity=".35"/><stop offset="1" stop-color="#4FD6A8" stop-opacity="0"/></radialGradient>
+            <radialGradient id="glowFire"><stop offset="0" stop-color="#FF7B39" stop-opacity=".35"/><stop offset="1" stop-color="#FF7B39" stop-opacity="0"/></radialGradient>
+          </defs>
+          <rect width="${W}" height="${H}" fill="url(#sky)"/>
+          ${stalactites}
+          <circle cx="560" cy="380" r="230" fill="url(#glowMint)"/>
+          <circle cx="840" cy="380" r="210" fill="url(#glowFire)"/>
+          <rect y="${GROUND}" width="${W}" height="${H - GROUND}" fill="url(#ground)"/>
+          <rect y="${GROUND}" width="${W}" height="4" fill="#fff" opacity=".08"/>
+          ${rocks}
+
+          <g opacity=".45">${Art.golem({ x: 975, y: GROUND - 18, size: 90 })}</g>
+          <g opacity=".85">${Art.bat({ x: 700, y: 150, size: 120 })}</g>
+
+          ${Art.slime({ x: 560, y: GROUND + 6, size: 270 })}
+          ${Art.dragon({ x: 845, y: GROUND + 6, size: 280 })}
+          ${Art.flame(812, 368, 38)}${Art.flame(852, 358, 44)}${Art.flame(892, 372, 34)}
+
+          ${Art.hpBar(560, 288, 190, 0.78, '#5FE08A')}
+          ${Art.hpBar(845, 214, 200, 0.36, '#FF5A5A')}
+          ${Art.damage(822, 192, '128!', 64, '#FFD84A')}
+          ${Art.damage(940, 262, '24', 40, '#FF9A3C')}
+          ${Art.damage(618, 264, '+12', 36, '#7BE495')}
+
+          ${title(54, 170, '슬라임', 104, '#FFFFFF', 15)}
+          ${title(54, 286, '용병단', 104, '#86EECD', 15)}
+          <text x="58" y="352" font-family="Jua, 'Malgun Gothic', sans-serif" font-size="27" fill="#E6E1FF">몬스터를 흡수해 강해지는</text>
+          <text x="58" y="390" font-family="Jua, 'Malgun Gothic', sans-serif" font-size="27" fill="#E6E1FF">방치형 RPG</text>
+        </svg>`;
+      Art.ready();
+    </script>
+  </body>
+</html>

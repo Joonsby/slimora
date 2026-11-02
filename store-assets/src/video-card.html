@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <!-- 모바일로 흉내 내 찍으므로 없으면 화면 폭이 980px 로 잡혀 그림이 왼쪽 위 구석에 작게 나온다 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>동영상 카드 360×640</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=block" />
+    <style>
+      html, body { margin: 0; background: #1b1838; }
+      svg { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <script>
+      // ?kind=intro | outro — 세로 동영상의 시작 · 끝 화면 (CSS 360×640, 2배로 찍는다)
+      const outro = new URLSearchParams(location.search).get('kind') === 'outro';
+      const W = 360, H = 640;
+      const font = "Jua, 'Malgun Gothic', sans-serif";
+      const text = (y, s, size, fill, stroke = 0) =>
+        `<text x="${W / 2}" y="${y}" text-anchor="middle" font-family="${font}" font-size="${size}" fill="${fill}"${stroke ? ` stroke="#141022" stroke-width="${stroke}" paint-order="stroke" stroke-linejoin="round"` : ''}>${s}</text>`;
+      const sparkle = (x, y, r) => `<path d="M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r} Z" fill="#FFE48A"/>`;
+      document.body.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+          <defs>
+            <radialGradient id="bg" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#3D3784"/><stop offset="1" stop-color="#141230"/></radialGradient>
+          </defs>
+          <rect width="${W}" height="${H}" fill="url(#bg)"/>
+          <circle cx="${W / 2}" cy="${outro ? 300 : 400}" r="170" fill="#4FD6A8" opacity=".14"/>
+          ${sparkle(60, 120, 14)}${sparkle(300, 90, 10)}${sparkle(318, 330, 8)}${sparkle(44, 400, 8)}
+          ${text(outro ? 140 : 170, '슬라임', 72, '#FFFFFF', 12)}
+          ${text(outro ? 222 : 252, '용병단', 72, '#86EECD', 12)}
+          ${outro
+            ? `${Art.slime({ x: W / 2, y: 470, size: 230, withHelmet: true })}${text(540, '지금 바로 시작하세요!', 26, '#FFE48A')}${text(578, '20개 지역 · 200 스테이지 · 보스 20종', 17, '#E6E1FF')}`
+            : `${Art.slime({ x: W / 2, y: 540, size: 250 })}${text(316, '몬스터를 흡수해 강해지는', 21, '#E6E1FF')}${text(346, '방치형 RPG', 21, '#E6E1FF')}`}
+        </svg>`;
+      Art.ready();
+    </script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 /**
- * 앱인토스 콘솔용 이미지 생성 — 로고 · 썸네일 · 스크린샷
+ * 스토어 콘솔용 이미지 생성 — 로고 · 썸네일 · 스크린샷 · 그래픽 이미지(1024×578)
  *   npm run build && npm run store-assets
  * 헤드리스 Chrome 이 필요하다 (경로는 CHROME_PATH 로 바꿀 수 있다). 결과는 ../store-assets/*.png
  */
@@ -134,6 +134,7 @@ async function main(): Promise<void> {
       await renderPage(cdp, 'logo.html', 'logo-dark-600.png', 600, 600, '?mode=dark');
       await renderPage(cdp, 'thumbnail.html', 'thumbnail-1932x828.png', 1932, 828);
       await renderPage(cdp, 'landscape.html', 'screenshot-landscape-1504x741.png', 1504, 741);
+      await renderPage(cdp, 'banner.html', 'graphic-1024x578.png', 1024, 578);
     });
   } finally {
     await server.close();

@@ -16,6 +16,7 @@
     "sim": "tsx tools/balance-sim.ts",
     "sim:long": "tsx tools/progress-sim.ts",
     "store-assets": "tsx tools/store-assets.ts",
+    "onestore-assets": "tsx tools/onestore-assets.ts",
     "android-icons": "tsx tools/android-icons.ts",
     "deploy": "ait deploy"
   },

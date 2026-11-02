@@ -728,6 +728,9 @@ button.card:not(:disabled):active {
 
 .milestone-hint {
   align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   margin-top: 2px;
   padding: 1px 8px;

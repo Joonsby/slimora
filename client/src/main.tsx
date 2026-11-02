@@ -12,6 +12,7 @@ import { HttpCloudSaveStore } from './persistence/HttpCloudSaveStore';
 import { LocalStorageSaveRepository } from './persistence/LocalStorageSaveRepository';
 import { createMemoryStorage } from './persistence/MemorySaveRepository';
 import { installAndroidBackButton } from './platform/androidBackButton';
+import { bootOneStoreH5 } from './platform/oneStoreH5';
 import { createOneStoreShop } from './platform/oneStoreShop';
 import { createTossRewardedAds } from './platform/tossAds';
 import { createTossLeaderboard } from './platform/tossLeaderboard';
@@ -85,17 +86,39 @@ if (configErrors.length > 0) {
   attachBattleLog(session, store, gameConfig);
   attachBattleSfx(session, store, sfx);
   // 뒤로가기: 열린 창 · 시트가 있으면 닫고, 없으면 앱을 백그라운드로
-  installAndroidBackButton(() => {
+  const closeTopmost = () => {
     const s = store.getState();
     if (s.offline) session.dismissOffline();
     else if (s.sheet !== 'none') openSheet(store, 'none');
     else return false;
     return true;
+  };
+  installAndroidBackButton(closeTopmost);
+
+  let game: ReturnType<typeof createGame> | null = null;
+  let shown: () => void = () => {};
+  const battleShown = new Promise<void>((resolve) => (shown = resolve));
+  // 원스토어 앱(H5) 안이면 SDK 로 초기화 → 로딩 진행률 → 시작 알림. 일시정지 동안은 전투 · 소리를 멈춘다
+  const oneStore = bootOneStoreH5({
+    pause: () => {
+      game?.pause();
+      sfx.setSuspended(true);
+    },
+    resume: () => {
+      game?.resume();
+      sfx.setSuspended(false);
+    },
+    exit: () => void session.saveNow(),
+    back: closeTopmost,
   });
 
   const mountBattle = (parent: HTMLElement) => {
-    const game = createGame(parent, session);
-    return () => game.destroy(true);
+    game = createGame(parent, session, shown);
+    const mounted = game;
+    return () => {
+      mounted.destroy(true);
+      if (game === mounted) game = null;
+    };
   };
 
   root.render(
@@ -106,8 +129,21 @@ if (configErrors.length > 0) {
     </StrictMode>,
   );
 
+  const started = session.start();
+  // 원스토어: 초기화 → 진행률 → 전투 화면이 실제로 그려진 뒤 시작 알림 (그때 원스토어 로딩 화면이 걷힌다)
   void (async () => {
-    const status = await session.start();
+    const h5 = await oneStore;
+    if (!h5) return;
+    h5.progress(20);
+    await started;
+    h5.progress(60);
+    await battleShown;
+    h5.progress(100);
+    await h5.start().catch((e: unknown) => console.warn('원스토어 시작 알림 실패', e));
+  })();
+
+  void (async () => {
+    const status = await started;
     const notice = {
       new: '새 게임을 시작합니다',
       restored: '저장된 진행을 이어갑니다',
