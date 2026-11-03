@@ -1,4 +1,4 @@
-package com.slimora.game;
+package com.joonsby.slimora;
 
 import android.os.Bundle;
 

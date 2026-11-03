@@ -40,22 +40,38 @@ npm run dev -- --host    # 같은 와이파이의 휴대폰에서 접속할 때
 ## 안드로이드 빌드 (원스토어)
 
 같은 웹 빌드를 Capacitor 로 감싸 안드로이드 앱으로 만든다. 설정은 `client/capacitor.config.ts`, 네이티브 프로젝트는 `client/android/` 에 있다.
-**Android Studio** 를 먼저 설치한다 (SDK 와 JDK 21 이 같이 들어온다).
+**Android Studio** 를 먼저 설치한다 (SDK 가 같이 들어온다). 명령줄 빌드는 JDK 17 이상이면 된다.
 
 ```bash
-npm run build:android    # 타입 검사 → dist/ 빌드 → client/android 로 복사 (.ait 는 만들지 않는다)
+npm run build:apk        # 타입 검사 → dist/ 빌드 → client/android 로 복사 → 서명된 APK 를 client/release/ 에
+npm run build:android    # client/android 로 복사까지만 (Android Studio 에서 빌드할 때)
 npm run open:android     # Android Studio 로 연다
 ```
 
-Android Studio 에서 **Build > Generate Signed App Bundle / APK** 로 서명된 파일을 만든다.
+**서명 키는 처음 한 번 직접 만든다.** `keytool` 이 비밀번호와 이름 · 조직을 묻는다. 키 파일은 저장소 밖에 둔다.
+
+```bash
+keytool -genkeypair -v -keystore C:/Users/<사용자>/slimora-release.jks -alias slimora -keyalg RSA -keysize 2048 -validity 10000
+```
+
+그다음 `client/android/keystore.properties` 를 만든다. 저장소에 올라가지 않는다 (`.gitignore`). 경로는 `/` 로 쓴다.
+
+```properties
+storeFile=C:/Users/<사용자>/slimora-release.jks
+storePassword=<키 저장소 비밀번호>
+keyAlias=slimora
+```
+
+키 비밀번호가 저장소 비밀번호와 다를 때만 `keyPassword` 를 더 적는다 (keytool 기본 형식은 둘이 같다).
 
 - **키스토어(.jks)와 비밀번호를 잃어버리면 같은 앱으로 업데이트를 낼 수 없다.** 저장소 밖 두 곳 이상에 백업한다
-- `appId`(`com.slimora.game`)는 원스토어 신규 앱 등록 때 입력하는 패키지명과 같아야 한다. 등록 후에는 바꿀 수 없다
+- `keystore.properties` 가 없으면 `npm run build:apk` 는 빌드하지 않고 멈춘다. Android Studio 의 **Build > Generate Signed App Bundle / APK** 로 서명해도 된다
+- `appId`(`com.joonsby.slimora`)는 원스토어 신규 앱 등록 때 입력하는 패키지명과 같아야 한다. 등록 후에는 바꿀 수 없다
 - 앱 아이콘 · 스플래시는 `store-assets/src/android-icon.html` 에서 그린다. 고친 뒤 `client` 에서 `npm run android-icons` 로 `res/` 의 PNG 를 다시 만든다 (Chrome 필요)
-- 원스토어가 APK 와 AAB 중 무엇을 받는지는 원스토어 개발자 콘솔에서 확인한다
+- 원스토어는 APK 와 AAB 를 모두 받는다 (서명은 v2 이상)
 - 업데이트를 낼 때마다 `client/android/app/build.gradle` 의 `versionCode` 를 올린다
-- **원스토어 결제:** 원스토어 개발자센터에서 앱을 등록하고 **라이선스 키(공개 키)** 를 `client/android/app/src/main/res/values/strings.xml` 의 `onestore_license_key` 에 넣는다. 비어 있으면 상점이 「결제하지 못했어요」만 띄운다. 인앱 상품은 `shop.json` 의 sku 와 같은 ID 로 **관리형 상품** 으로 등록한다 (보석 · 스타터 팩은 지급 뒤 소비, 광고 패스는 확인만 해서 재설치 때 복원된다)
-- 명령줄에서 gradle 을 돌릴 때 Android Studio 내장 JDK 가 21 보다 새것이면(`Unsupported class file major version`) `JAVA_HOME` 을 JDK 21 로 잡는다
+- **Gradle 은 9.5.x 까지만 쓴다.** AGP 8.13 은 Gradle 9.6 이상에서 빌드가 깨진다. Android Studio 가 Gradle · AGP 업그레이드를 권해도 받지 않는다 (9.5 는 Android Studio 내장 JDK 25 에서도 빌드된다)
+- **원스토어 결제는 꺼져 있다** (원스토어판은 유료 결제 없이 낸다). 켜려면 `VITE_ONESTORE_IAP=on` 으로 빌드하고, 원스토어 개발자센터의 **라이선스 키(공개 키)** 를 `client/android/app/src/main/res/values/strings.xml` 의 `onestore_license_key` 에 넣는다. 인앱 상품은 `shop.json` 의 sku 와 같은 ID 로 **관리형 상품** 으로 등록한다 (보석 · 스타터 팩은 지급 뒤 소비, 광고 패스는 확인만 해서 재설치 때 복원된다)
 
 ## 조작
 
@@ -94,7 +110,7 @@ Android Studio 에서 **Build > Generate Signed App Bundle / APK** 로 서명된
 | 용병 · 뽑기 | 보석으로 용병 8종(일반 4 · 희귀 3 · 전설 1)을 뽑는다. 1회 100 · 10회 900(희귀 이상 1명 보장), 확률 일반 70% · 희귀 25% · 전설 5%(등급 안에서는 같은 확률, 뽑기 화면에 공개). 같은 용병은 레벨업(최대 10, 넘치면 보석 20 반환). 2명까지 편성 — 슬라임 위를 떠다니며 지원 공격(슬라임 공격력 × 비율)을 하고 패시브(공격력 · HP · 골드 · 치명타 · 피해 감소)를 준다. 오프라인 보상 계산에도 들어간다 |
 | 랭킹 | 토스 게임센터 리더보드 (토스 앱 안에서만). 점수 = 환생 횟수 × 100 + 모든 회차 최고 스테이지. 스테이지 클리어 · 환생 때, 이번 실행에서 올리지 않은 더 높은 점수만 제출. HUD 트로피 버튼으로 랭킹 화면을 연다. 미니앱 정보 승인 뒤에만 동작한다 |
 | 보석 | 시작 선물 100, 모든 회차를 통틀어 처음 깬 스테이지마다 10 + (스테이지 − 1), 환생 50, 보상형 광고 50 (하루 5번), 상점 결제. 환생해도 남는다 |
-| 상점 · 결제 | HUD 보석(+) · 용병 화면 「충전」으로 연다. 보석 300 / 1,100 / 3,800 (1,100 · 3,300 · 9,900원), 1회 한정 스타터 팩(보석 1,000 + 정수 5, 2,200원) · 광고 패스(5,500원). 상품 정의는 `client/src/data/shop.json`. 토스 앱은 앱인토스 인앱결제, 안드로이드 앱은 원스토어 인앱결제(SDK V21, `OneStoreBillingPlugin`), 일반 브라우저는 상점 없음. 지급하고 기기에 저장한 뒤에야 스토어에 완료를 알리고, 지급 전에 꺼진 주문은 다음 실행 때 지급한다. 같은 주문은 두 번 지급하지 않는다. 다른 기기의 서버 저장으로 바뀌어도 이 기기에서 결제한 것은 다시 얹는다. 화면 아래에 청약철회 안내. 저장 형식 v6 |
+| 상점 · 결제 | HUD 보석(+) · 용병 화면 「충전」으로 연다. 보석 300 / 1,100 / 3,800 (1,100 · 3,300 · 9,900원), 1회 한정 스타터 팩(보석 1,000 + 정수 5, 2,200원) · 광고 패스(5,500원). 상품 정의는 `client/src/data/shop.json`. 토스 앱은 앱인토스 인앱결제, 안드로이드 앱은 원스토어 인앱결제(SDK V21, `OneStoreBillingPlugin`. 기본은 꺼져 있고 `VITE_ONESTORE_IAP=on` 빌드에서만 연다), 일반 브라우저는 상점 없음. 지급하고 기기에 저장한 뒤에야 스토어에 완료를 알리고, 지급 전에 꺼진 주문은 다음 실행 때 지급한다. 같은 주문은 두 번 지급하지 않는다. 다른 기기의 서버 저장으로 바뀌어도 이 기기에서 결제한 것은 다시 얹는다. 화면 아래에 청약철회 안내. 저장 형식 v6 |
 | 원스토어 H5 | 원스토어 앱이 게임을 iframe 으로 띄울 때만 원스토어 H5 Game SDK v1.1.0 을 불러온다 (`client/src/platform/oneStoreH5.ts`). 초기화 → 로딩 진행률 → 전투 화면이 실제로 그려진 뒤 시작 알림(core.ready). 일시정지 이벤트에 전투 · 효과음을 멈추고, 종료 이벤트에 저장, 뒤로가기는 열린 창을 닫는다. 브라우저 · 토스 앱 · 안드로이드 앱에서는 불러오지 않는다 |
 | 광고 패스 | 오프라인 보상 2배와 광고 보석을 광고 없이 바로 받는다 (광고 보석 하루 5번 제한은 같다). 영구 — 환생해도, 원스토어는 재설치해도 남는다 |
 | 환생 | 1장 보스(스테이지 10)를 깨면 할 수 있다. 정수 = floor(3 × 1.19^(최고클리어 − 10)) (10 → 3, 50 → 3,265). 골드 · 강화 · 흡수 · 스테이지는 처음으로, 진화 형태 · 누적 기록 · 정수 강화는 남는다. 정수 강화 4종 — 공격력 · 최대 HP · 처치 골드는 레벨마다 ×1.1 (곱해서 쌓인다), 오프라인 보상 상한 +1시간(최대 4). 용병 패시브는 정수 강화 배율에 곱한다. 저장 형식 v4 |
@@ -195,3 +211,4 @@ VITE_SAVE_DEV_USER=tester
 | 2026-10-30 | 용병 뽑기 · 편성 · 지원 공격, 보석(첫 클리어 · 환생 · 광고 · 시작 선물), 하단 메뉴의 흡수를 용병으로 교체(흡수는 HUD 레벨 버튼), 저장 형식 v5, 밸런스 설정 0.7.0 |
 | 2026-10-30 | 상점 · 인앱결제 (앱인토스 IAP · 원스토어 SDK V21 플러그인), 보석 3종 · 스타터 팩 · 광고 패스, 미지급 주문 복구, 저장 형식 v6 |
 | 2026-10-30 | 스테이지 15 → 200 (20장 · 10개 지역 · 몬스터 30종 · 보스 20종 · 배경 51종), 난이도 상향 — 강화 돌파(25레벨마다 ×3.5) · 정수 강화 곱연산 · 환생은 1장 보스부터, 사냥터 장 접기, 밸런스 설정 0.8.0, 장기 진행 시뮬레이터(`npm run sim:long`) |
+| 2026-11-02 | 원스토어 안드로이드 출시 준비 — 앱 ID `com.joonsby.slimora`, 서명된 APK 빌드(`npm run build:apk`), Gradle 9.5.1, 안드로이드 앱의 원스토어 결제는 기본 꺼짐 |

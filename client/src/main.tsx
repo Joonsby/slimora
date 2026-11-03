@@ -48,9 +48,11 @@ function createAds(sfx: Sfx): RewardedAds | null {
   return createTossRewardedAds(adGroupId, { onStart: () => sfx.setSuspended(true), onEnd: () => sfx.setSuspended(false) }, import.meta.env.DEV);
 }
 
-/** 결제: 안드로이드 앱은 원스토어, 토스 앱(개발 서버는 devtools 가짜 결제)은 앱인토스 인앱결제 */
+/** 결제: 토스 앱(개발 서버는 devtools 가짜 결제)은 앱인토스 인앱결제. 안드로이드 앱(원스토어)은 유료 결제 없이 내므로 VITE_ONESTORE_IAP=on 일 때만 */
 function createShop(): ShopStore | null {
-  if (Capacitor.getPlatform() === 'android') return createOneStoreShop((sku) => findProduct(gameConfig, sku)?.adPass === true);
+  if (Capacitor.getPlatform() === 'android') {
+    return import.meta.env.VITE_ONESTORE_IAP === 'on' ? createOneStoreShop((sku) => findProduct(gameConfig, sku)?.adPass === true) : null;
+  }
   if (import.meta.env.DEV || inTossApp()) return createTossShop();
   return null;
 }

@@ -3,3 +3,6 @@ dist
 *.log
 
 *.ait
+
+# npm run build:apk 결과 (원스토어 업로드용 APK)
+release/

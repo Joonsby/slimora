@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "npm run typecheck && vite build && ait build && tsx tools/fix-ait-paths.ts",
     "build:android": "npm run typecheck && vite build && cap sync android",
+    "build:apk": "npm run build:android && tsx tools/build-apk.ts",
     "open:android": "cap open android",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
     "preview": "vite preview",

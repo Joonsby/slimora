@@ -1,10 +1,19 @@
 apply plugin: 'com.android.application'
 
+// 릴리스 서명 정보 (client/android/keystore.properties, 저장소에 올리지 않는다). 없으면 서명 안 된 APK 가 나온다
+def keystoreFile = rootProject.file('keystore.properties')
+def keystore = new Properties()
+if (keystoreFile.exists()) {
+    keystoreFile.withInputStream { keystore.load(it) }
+    def missing = ['storeFile', 'storePassword', 'keyAlias'].findAll { !keystore[it] }
+    if (missing) throw new GradleException("keystore.properties 에 ${missing.join(', ')} 항목이 없다")
+}
+
 android {
-    namespace = "com.slimora.game"
+    namespace = "com.joonsby.slimora"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.slimora.game"
+        applicationId "com.joonsby.slimora"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -16,8 +25,20 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystoreFile.exists()) {
+                storeFile rootProject.file(keystore['storeFile'])
+                storePassword keystore['storePassword']
+                keyAlias keystore['keyAlias']
+                // keytool 기본 형식(PKCS12)은 키 비밀번호가 저장소 비밀번호와 같다
+                keyPassword keystore['keyPassword'] ?: keystore['storePassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (keystoreFile.exists()) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

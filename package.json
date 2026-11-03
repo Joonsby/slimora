@@ -6,6 +6,7 @@
     "dev": "npm --prefix client run dev --",
     "build": "npm --prefix client run build",
     "build:android": "npm --prefix client run build:android",
+    "build:apk": "npm --prefix client run build:apk",
     "open:android": "npm --prefix client run open:android",
     "preview": "npm --prefix client run preview --",
     "test": "npm --prefix client test",
