@@ -67,6 +67,7 @@ export function rebirth(p: ProgressState, cfg: GameConfig): Result<ProgressState
     mercenaries: p.mercenaries,
     daily: p.daily,
     purchases: p.purchases,
+    dungeon: p.dungeon,
     prestige: {
       ...p.prestige,
       count: p.prestige.count + 1,

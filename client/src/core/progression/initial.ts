@@ -22,5 +22,6 @@ export function createInitialProgress(cfg: GameConfig): ProgressState {
     mercenaries: { owned: {}, party: [] },
     daily: { day: '', adGems: 0 },
     purchases: { owned: [], orders: [] },
+    dungeon: { cleared: 0, best: {}, crystals: 0, research: Object.fromEntries(cfg.dungeon.research.map((r) => [r.id, 0])), synergies: [], runs: 0 },
   };
 }

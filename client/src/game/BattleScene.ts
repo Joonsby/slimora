@@ -6,7 +6,7 @@ import type { MonsterDef } from '../core/model/config';
 import type { StageId } from '../core/model/ids';
 import { findForm } from '../core/progression/forms';
 import type { GameSession, SessionEvent } from '../session/GameSession';
-import { KEY, queueCoreTextures, queueMonsters, queueScene, sceneInfo, stageMonsters, textureRes, type MonsterMeta } from './assets';
+import { DUNGEON_SCENE, dungeonMonsters, KEY, queueCoreTextures, queueMonsters, queueScene, sceneInfo, stageMonsters, textureRes, type MonsterMeta } from './assets';
 import { DamageTextPool, FONT_FAMILY } from './DamageTextPool';
 import { slimeTint } from '../art/slimeColor';
 import { SlimeView } from './SlimeView';
@@ -114,6 +114,13 @@ export class BattleScene extends Phaser.Scene {
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.unsubscribe = this.session.onEvents((events) => this.onEvents(events));
+    // 첫 화면을 그린 뒤 한가할 때 던전 배경 · 보스를 미리 굽는다 (들어갈 때 기다리지 않게)
+    this.time.delayedCall(2500, () => {
+      const queued = queueScene(this, DUNGEON_SCENE, this.bgRes());
+      if ((queueMonsters(this, this.session.config, dungeonMonsters(this.session.config), this.texRes) || queued) && !this.load.isLoading()) this.load.start();
+    });
+    // 던전에서 돌아오면 그사이 바뀐 외형 · 용병을 맞춘다
+    this.events.on(Phaser.Scenes.Events.WAKE, this.onWake, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.events.once(Phaser.Scenes.Events.DESTROY, this.cleanup, this);
   }
@@ -123,9 +130,17 @@ export class BattleScene extends Phaser.Scene {
     this.drawUnits(time, delta);
   }
 
+  private onWake(): void {
+    this.refreshSlimeLook();
+    this.slime.root.setAlpha(1);
+    this.startIdle();
+    this.syncAllies();
+  }
+
   private cleanup(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
+    this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
     this.scale.off(Phaser.Scale.Events.RESIZE, this.onResize, this);
     this.slime?.destroy();
   }
@@ -286,6 +301,8 @@ export class BattleScene extends Phaser.Scene {
   // ── 이벤트 ──────────────────────────────────────────────
 
   private onEvents(events: readonly SessionEvent[]): void {
+    // 던전 중에는 잠들어 있다 — 돌아오면 onWake 가 맞춘다
+    if (this.sys.isSleeping()) return;
     for (const e of events) {
       switch (e.type) {
         case 'battleStarted':
@@ -381,6 +398,13 @@ export class BattleScene extends Phaser.Scene {
         case 'rebirth':
           this.playRebirth(e.count, e.essence);
           break;
+        case 'ultimate':
+          this.playUltimate(e.interrupted);
+          break;
+        case 'ultimateReady':
+          this.sparkBurst?.setParticleTint(0xffd84a);
+          this.sparkBurst?.explode(10, this.layout.slimeX, this.layout.groundY - 60 * this.layout.unit);
+          break;
         case 'burnApplied':
           break;
       }
@@ -391,7 +415,10 @@ export class BattleScene extends Phaser.Scene {
     const p = this.textAnchor(e.to);
     let style = { color: '#ffffff', size: this.px(21), pop: false };
     let text = String(e.amount);
-    if (e.source === 'burn') style = { color: '#ff9a3c', size: this.px(16), pop: false };
+    if (e.source === 'ultimate') {
+      style = { color: '#ffe27a', size: this.px(36), pop: true };
+      text = `${e.amount}!!`;
+    } else if (e.source === 'burn') style = { color: '#ff9a3c', size: this.px(16), pop: false };
     else if (e.source === 'ally') style = { color: '#8fe9ff', size: this.px(17), pop: false };
     else if (e.heavy) {
       style = { color: '#ff3b3b', size: this.px(32), pop: true };
@@ -528,6 +555,23 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(420, () => {
       if (this.monster === sprite) sprite.clearTint();
     });
+  }
+
+  /** 필살기 — 슬라임이 솟았다 내려찍고 젤리 파도가 몬스터를 덮친다. 강타를 끊었으면 「차단!」 */
+  private playUltimate(interrupted: boolean): void {
+    const { unit, groundY, slimeX, monsterX, w } = this.layout;
+    const s = this.slimeScale();
+    this.idleTween?.pause();
+    this.tweens.add({ targets: this.slime.root, y: groundY - 40 * unit, scaleX: s * 0.9, scaleY: s * 1.15, duration: 140, yoyo: true, ease: 'Quad.easeOut', onComplete: () => this.startIdle() });
+    this.cameras.main.flash(220, 255, 236, 170);
+    this.cameras.main.shake(360, 0.012);
+    const wave = this.add.ellipse(slimeX, groundY - 30 * unit, 60 * unit, 140 * unit, this.slimeColor, 0.55).setDepth(DEPTH.fx).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: wave, x: w + 80 * unit, scaleX: 3.5, alpha: 0.15, duration: 380, ease: 'Cubic.easeIn', onComplete: () => wave.destroy() });
+    this.time.delayedCall(200, () => {
+      this.burst?.setParticleTint(0xffe27a);
+      this.burst?.explode(24, monsterX, groundY - 50 * unit);
+    });
+    if (interrupted) this.queueBanner('차단!', '#ffe27a');
   }
 
   /** 진화 연출 — 흰 빛 · 커졌다 돌아오기 · 퍼지는 고리 · 빛 입자 */

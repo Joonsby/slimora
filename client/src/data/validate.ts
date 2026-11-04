@@ -1,4 +1,6 @@
+import { SLOTS } from '../core/dungeon/engine';
 import type { GameConfig } from '../core/model/config';
+import { SKILL_IDS, SYNERGY_IDS, type UltimateSpec } from '../core/model/dungeon';
 import { EFFECT_KINDS, type EffectSpec } from '../core/model/effects';
 
 /** 설정의 형태·범위·참조를 검사한다. 문제가 없으면 빈 배열 */
@@ -149,6 +151,9 @@ export function validateConfig(cfg: GameConfig): string[] {
     positive(m.passive.value, `${p}.passive.value`);
   }
 
+  validateUltimate(cfg.balance.ultimate, 'balance.ultimate', errors);
+  validateDungeon(cfg, monsterIds, errors);
+
   uniqueIds(cfg.shop.map((s) => s.sku), 'shop', errors);
   for (const s of cfg.shop) {
     const p = `shop.${s.sku}`;
@@ -160,6 +165,123 @@ export function validateConfig(cfg: GameConfig): string[] {
   }
 
   return errors;
+}
+
+function validateUltimate(u: UltimateSpec | undefined, path: string, errors: string[]) {
+  if (!u) {
+    errors.push(`${path}: 없음`);
+    return;
+  }
+  const check = (cond: boolean, msg: string) => {
+    if (!cond) errors.push(`${path}.${msg}`);
+  };
+  check(u.max > 0, 'max: 양수여야 함');
+  check(u.start >= 0 && u.start <= u.max, 'start: 0 ~ max');
+  check(u.perSecond >= 0 && u.perKill >= 0, 'perSecond · perKill: 0 이상');
+  check(u.damageMul > 0, 'damageMul: 양수여야 함');
+  check(u.armorPierce >= 0 && u.armorPierce <= 1, 'armorPierce: 0~1');
+  check(Number.isInteger(u.staggerMs) && u.staggerMs > 0, 'staggerMs: 양의 정수');
+  check(u.staggerTakenMul >= 1, 'staggerTakenMul: 1 이상');
+}
+
+/** 도전 던전 — 웨이브 · 보스 · 스킬 · 시너지 · 형태 · 용병 연계 · 연구 */
+function validateDungeon(cfg: GameConfig, monsterIds: Set<string>, errors: string[]) {
+  const d = cfg.dungeon;
+  if (!d) {
+    errors.push('dungeon: 없음');
+    return;
+  }
+  const check = (cond: boolean, msg: string) => {
+    if (!cond) errors.push(`dungeon.${msg}`);
+  };
+  const posInt = (v: unknown) => Number.isInteger(v) && (v as number) >= 1;
+  const ratio = (v: unknown) => typeof v === 'number' && v >= 0 && v <= 1;
+  const skillIds = new Set<string>(SKILL_IDS);
+  const formIds = new Set(cfg.forms.map((f) => f.id));
+
+  check(cfg.stages.some((s) => s.id === d.unlockStage), `unlockStage: 없는 스테이지 ${d.unlockStage}`);
+  check(posInt(d.levels.count) && posInt(d.levels.refStageBase) && posInt(d.levels.refStageStep), 'levels: count · refStageBase · refStageStep 은 1 이상 정수');
+
+  const w = d.waves;
+  check(w.monsters.length > 0, 'waves.monsters: 비어 있음');
+  w.monsters.forEach((n, i) => {
+    const boss = w.bosses[String(i + 1)];
+    if (boss) check(n === 0, `waves.monsters[${i}]: 보스 웨이브는 0`);
+    else check(posInt(n), `waves.monsters[${i}]: 1 이상 정수`);
+  });
+  for (const [wave, id] of Object.entries(w.bosses)) {
+    check(Number(wave) >= 1 && Number(wave) <= w.monsters.length, `waves.bosses.${wave}: 없는 웨이브`);
+    check(id in d.bosses, `waves.bosses.${wave}: 없는 보스 '${id}'`);
+  }
+  check(posInt(w.maxOnField) && w.maxOnField <= SLOTS.length, `waves.maxOnField: 1 ~ ${SLOTS.length}`);
+  check(w.hpMul > 0 && w.atkMul > 0 && w.intervalMul > 0 && w.hpPerWave >= 0 && w.atkPerWave >= 0, 'waves: 배율은 양수, 웨이브 상승은 0 이상');
+  check(posInt(w.startMs) && posInt(w.gapMs) && posInt(w.clearDelayMs) && posInt(w.burst), 'waves: startMs · gapMs · clearDelayMs · burst 는 1 이상 정수');
+  check(ratio(w.clearHeal) && ratio(w.regenOnKill), 'waves.clearHeal · regenOnKill: 0~1');
+
+  check(d.picks.beforeWaves.every((n) => n >= 1 && n <= w.monsters.length), 'picks.beforeWaves: 없는 웨이브');
+  check(posInt(d.picks.size) && Number.isInteger(d.picks.rerolls) && d.picks.rerolls >= 0, 'picks: size 는 1 이상, rerolls 는 0 이상 정수');
+  validateUltimate(d.ultimate, 'dungeon.ultimate', errors);
+  check(d.burn.dpsRatio > 0 && posInt(d.burn.durationMs) && posInt(d.burn.maxStacks), 'burn: dpsRatio 양수, durationMs · maxStacks 는 1 이상 정수');
+  const r = d.rewards;
+  check(r.goldMul > 0, 'rewards.goldMul: 양수');
+  check([r.crystalsPerWave, r.crystalsPerBoss, r.crystalsClear, r.firstClearGems.base, r.firstClearGems.perLevel, r.synergyGems].every((n) => Number.isInteger(n) && n >= 0), 'rewards: 0 이상 정수');
+
+  for (const id of SKILL_IDS) {
+    const s = d.skills[id];
+    if (!s) {
+      errors.push(`dungeon.skills.${id}: 없음`);
+      continue;
+    }
+    check(s.levels.length > 0, `skills.${id}.levels: 비어 있음`);
+    s.levels.forEach((lv, i) => {
+      const bad = Object.entries(lv).filter(([k, v]) => (typeof v === 'number' ? !(v >= 0) || (['every', 'jumps', 'extra', 'maxStacks', 'durationMs', 'cooldownMs'].includes(k) && !posInt(v)) : typeof v !== 'boolean'));
+      check(bad.length === 0, `skills.${id}.levels[${i}]: 잘못된 값 ${bad.map(([k]) => k).join(', ')}`);
+      if ('falloff' in lv) check(ratio(lv.falloff) && ratio(lv.stunChance), `skills.${id}.levels[${i}]: falloff · stunChance 는 0~1`);
+      if ('ratio' in lv) check(ratio(lv.ratio) && ratio(lv.hpBelow), `skills.${id}.levels[${i}]: ratio · hpBelow 는 0~1`);
+    });
+  }
+  for (const id of SYNERGY_IDS) {
+    const s = d.synergies[id];
+    if (!s) {
+      errors.push(`dungeon.synergies.${id}: 없음`);
+      continue;
+    }
+    check(s.skills.length === 2 && s.skills.every((k) => skillIds.has(k)) && s.skills[0] !== s.skills[1], `synergies.${id}.skills: 서로 다른 스킬 둘`);
+  }
+  for (const [id, f] of Object.entries(d.forms)) {
+    check(formIds.has(id), `forms.${id}: 없는 형태`);
+    check(skillIds.has(f.affinity), `forms.${id}.affinity: 없는 스킬 '${f.affinity}'`);
+  }
+  uniqueIds(d.links.map((l) => l.id), 'dungeon.links', errors);
+  for (const l of d.links) {
+    check(l.requires.length > 0, `links.${l.id}.requires: 비어 있음`);
+    for (const req of l.requires) {
+      check((req.form === undefined || formIds.has(req.form)) && (req.skill === undefined || skillIds.has(req.skill)) && (req.form !== undefined || req.skill !== undefined), `links.${l.id}.requires: 형태나 스킬 하나`);
+    }
+    check(['allyHeal', 'guardBoost', 'allyBurn', 'allySplit'].includes(l.effect.kind), `links.${l.id}.effect: 모르는 종류 '${l.effect.kind}'`);
+  }
+  for (const [id, b] of Object.entries(d.bosses)) {
+    const p = `bosses.${id}`;
+    check(monsterIds.has(b.monster), `${p}.monster: 없는 몬스터 '${b.monster}'`);
+    check(b.hpMul > 0 && b.atkMul > 0, `${p}: hpMul · atkMul 양수`);
+    check(posInt(b.attackIntervalMs) && posInt(b.firstPatternMs) && posInt(b.patternGapMs), `${p}: 간격은 1 이상 정수`);
+    check(b.damageReduction >= 0 && b.damageReduction < 1, `${p}.damageReduction: 0 이상 1 미만`);
+    check(b.enrage.hpBelowRatio > 0 && b.enrage.hpBelowRatio < 1 && b.enrage.gapMul > 0 && b.enrage.windupMul > 0, `${p}.enrage: 범위`);
+    check(b.cycle.length > 0, `${p}.cycle: 비어 있음`);
+    b.cycle.forEach((pt, i) => {
+      check(posInt(pt.windupMs), `${p}.cycle[${i}].windupMs: 1 이상 정수`);
+      if (pt.kind === 'smash') check(pt.mul > 0 && ratio(pt.hpRatio), `${p}.cycle[${i}]: mul 양수, hpRatio 0~1`);
+      else if (pt.kind === 'breath') check(pt.mul > 0 && ratio(pt.hpRatio) && ratio(pt.weakenTo) && Number.isInteger(pt.burnStacks) && pt.burnStacks >= 0, `${p}.cycle[${i}]: mul 양수, hpRatio · weakenTo 0~1`);
+      else if (pt.kind === 'guard') check(posInt(pt.durationMs) && pt.reduction > 0 && pt.reduction < 1, `${p}.cycle[${i}]: durationMs · reduction`);
+      else if (pt.kind === 'summon') check(posInt(pt.count) && monsterIds.has(pt.monster), `${p}.cycle[${i}]: count · monster`);
+      else errors.push(`dungeon.${p}.cycle[${i}]: 모르는 패턴`);
+    });
+  }
+  uniqueIds(d.research.map((x) => x.id), 'dungeon.research', errors);
+  for (const x of d.research) {
+    check(['hp', 'charge', 'reroll', 'choice'].includes(x.stat), `research.${x.id}.stat: 모르는 값 '${x.stat}'`);
+    check(x.perLevel > 0 && posInt(x.maxLevel) && x.cost.base > 0 && x.cost.growth >= 1, `research.${x.id}: perLevel · maxLevel · cost`);
+  }
 }
 
 function validateEffect(e: EffectSpec, path: string, errors: string[]) {

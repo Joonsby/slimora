@@ -8,7 +8,8 @@ export interface ChapterSource {
   /** 그 장의 일반 몬스터 3종 (박쥐 · 골렘 · 화염 계열 순) */
   pool: MonsterId[];
   boss: { monster: MonsterId; timeLimitMs: number };
-  stages: { name: string; scene: string }[];
+  /** overrides = 그 스테이지만 공식 대신 쓰는 수치 (초반 벽 완화 등) */
+  stages: { name: string; scene: string; overrides?: StageDef['overrides'] }[];
 }
 
 /** 처치 목표 — 장 첫 3스테이지가 기준, 3스테이지마다 +5. 1장만 기준이 낮다 */
@@ -34,6 +35,7 @@ export function expandChapters(chapters: readonly ChapterSource[]): { chapters: 
         chapter: ch.id,
         name: st.name,
         scene: st.scene,
+        ...(st.overrides ? { overrides: st.overrides } : {}),
         spawns: k < MIXED_FROM ? [{ monster: ch.pool[k % ch.pool.length]!, weight: 1 }] : mixed,
         killsToClear: last ? base : base + KILLS_STEP * Math.floor(k / 3),
         ...(last ? { boss: ch.boss } : {}),

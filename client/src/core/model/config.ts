@@ -1,3 +1,4 @@
+import type { DungeonConfig, UltimateSpec } from './dungeon';
 import type { EffectSpec } from './effects';
 import type { FamilyId, FormId, LegacyId, MercenaryId, MonsterId, StageId, UpgradeId } from './ids';
 
@@ -18,6 +19,8 @@ export interface GameConfig {
   mercenaries: MercenaryDef[];
   /** 결제 상품. sku 는 두 스토어(앱인토스 · 원스토어)에 같은 ID 로 등록한다 */
   shop: ProductDef[];
+  /** 도전 던전 */
+  dungeon: DungeonConfig;
 }
 
 export interface ProductDef {
@@ -55,6 +58,8 @@ export interface BalanceConfig {
   gems: { starter: number; firstClearBase: number; firstClearPerStage: number; rebirth: number; adReward: number; adDailyLimit: number };
   /** 함께 싸우는 용병 수. 레벨마다 지원 공격 +supportPerLevel, 패시브 +passivePerLevel (비율) */
   party: { slots: number; supportPerLevel: number; passivePerLevel: number };
+  /** 사냥터 · 스테이지 전투의 필살기 */
+  ultimate: UltimateSpec;
 }
 
 export type Rarity = 'common' | 'rare' | 'legendary';

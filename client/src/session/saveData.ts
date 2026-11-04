@@ -1,12 +1,13 @@
 import { lastStageId } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
+import { SYNERGY_IDS } from '../core/model/dungeon';
 import type { ProgressState, PurchaseOrder } from '../core/model/progress';
 import { createInitialProgress } from '../core/progression/initial';
 import type { SaveEnvelope } from './ports';
 import { DEFAULT_SETTINGS, normalizeSettings, type GameSettings } from './settings';
 
-/** v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가. v2 → v3: 진화 형태(form · unlockedForms) 추가. v3 → v4: 환생(prestige) 추가. v4 → v5: 보석 · 용병 · 하루 횟수 추가. v5 → v6: 결제(purchases) 추가 */
-export const SCHEMA_VERSION = 6;
+/** v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가. v2 → v3: 진화 형태(form · unlockedForms) 추가. v3 → v4: 환생(prestige) 추가. v4 → v5: 보석 · 용병 · 하루 횟수 추가. v5 → v6: 결제(purchases) 추가. v6 → v7: 도전 던전(dungeon) 추가 */
+export const SCHEMA_VERSION = 7;
 
 export interface SaveData {
   installId: string;
@@ -48,6 +49,8 @@ const MIGRATIONS: Record<number, (data: unknown) => unknown> = {
   4: (data) => data,
   // 결제 기록은 normalizeProgress 가 빈 값으로 채운다
   5: (data) => data,
+  // 던전 기록도 normalizeProgress 가 빈 값으로 채운다
+  6: (data) => data,
 };
 
 /** 읽을 수 없는 저장이면 null */
@@ -114,6 +117,28 @@ export function normalizeProgress(raw: unknown, cfg: GameConfig): ProgressState 
     mercenaries: normalizeMercenaries(r.mercenaries, cfg),
     daily: normalizeDaily(r.daily),
     purchases: normalizePurchases(r.purchases, cfg),
+    dungeon: normalizeDungeon(r.dungeon, cfg),
+  };
+}
+
+function normalizeDungeon(raw: unknown, cfg: GameConfig): ProgressState['dungeon'] {
+  const d = (raw ?? {}) as { cleared?: unknown; best?: Record<string, unknown>; crystals?: unknown; research?: Record<string, unknown>; synergies?: unknown; runs?: unknown };
+  const levels = cfg.dungeon.levels.count;
+  const waves = cfg.dungeon.waves.monsters.length;
+  const best: Record<number, number> = {};
+  for (const [key, value] of Object.entries(d.best ?? {})) {
+    const level = Number(key);
+    const record = Math.min(nonNegInt(value), waves);
+    if (Number.isInteger(level) && level >= 1 && level <= levels && record > 0) best[level] = record;
+  }
+  const synergyIds = new Set<string>(SYNERGY_IDS);
+  return {
+    cleared: Math.min(nonNegInt(d.cleared), levels),
+    best,
+    crystals: nonNegInt(d.crystals),
+    research: Object.fromEntries(cfg.dungeon.research.map((r) => [r.id, Math.min(nonNegInt(d.research?.[r.id]), r.maxLevel)])),
+    synergies: Array.isArray(d.synergies) ? [...new Set(d.synergies.filter((s): s is string => typeof s === 'string' && synergyIds.has(s)))] : [],
+    runs: nonNegInt(d.runs),
   };
 }
 

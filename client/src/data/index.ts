@@ -2,6 +2,7 @@ import type { GameConfig } from '../core/model/config';
 import balance from './balance.json';
 import chapterData from './chapters.json';
 import { expandChapters, type ChapterSource } from './chapters';
+import dungeon from './dungeon.json';
 import families from './families.json';
 import forms from './forms.json';
 import legacy from './legacy.json';
@@ -28,4 +29,5 @@ export const gameConfig = {
   legacy,
   mercenaries,
   shop,
+  dungeon,
 } as unknown as GameConfig;

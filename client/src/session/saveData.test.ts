@@ -48,6 +48,7 @@ describe('저장 데이터', () => {
         mercenaries: { owned: {}, party: [] },
         daily: { day: '', adGems: 0 },
         purchases: { owned: [], orders: [] },
+        dungeon: { cleared: 0, best: {}, crystals: 0, research: { jelly: 0, spark: 0, fate: 0, insight: 0 }, synergies: [], runs: 0 },
       },
       settings: { battleSpeed: 3, sound: true, tutorial: [] },
     });
@@ -81,6 +82,7 @@ describe('저장 데이터', () => {
       mercenaries: { owned: {}, party: [] },
       daily: { day: '', adGems: 0 },
       purchases: { owned: [], orders: [] },
+      dungeon: { cleared: 0, best: {}, crystals: 0, research: { jelly: 0, spark: 0, fate: 0, insight: 0 }, synergies: [], runs: 0 },
     });
   });
 

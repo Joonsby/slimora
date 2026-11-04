@@ -63,11 +63,17 @@ function describe(e: SessionEvent, cfg: GameConfig, state: GameStoreState): Omit
     case 'masteryUp':
       return { text: `${findForm(cfg, e.form)?.name ?? e.form} 숙련 Lv ${e.level}`, tone: 'good' };
     case 'gemsGained':
-      return { text: `보석 +${e.amount} (${{ firstClear: '첫 클리어', rebirth: '환생', ad: '광고' }[e.reason]})`, tone: 'good' };
+      return { text: `보석 +${e.amount} (${{ firstClear: '첫 클리어', rebirth: '환생', ad: '광고', dungeon: '도전 던전' }[e.reason]})`, tone: 'good' };
     case 'purchased':
       return { text: `${e.name} 구매 완료 — 지급했습니다`, tone: 'good' };
     case 'rebirth':
       return { text: `환생 ${e.count}회째 — 정수 +${e.essence}`, tone: 'good' };
+    case 'ultimate':
+      return { text: e.interrupted ? `필살기로 강타를 끊었다! ${e.amount} 피해` : `필살기! ${e.amount} 피해`, tone: 'good' };
+    case 'dungeonStarted':
+      return { text: `도전 던전 ${e.level}단계 입장`, tone: 'normal' };
+    case 'dungeonEnded':
+      return { text: `도전 던전 ${e.level}단계 — ${e.cleared ? '클리어!' : `웨이브 ${e.waves}까지`}`, tone: e.cleared ? 'good' : 'normal' };
     case 'offlineReward':
       return { text: e.bonus ? `광고 보너스 +${e.gold} G` : `자리 비운 동안 +${e.gold} G`, tone: 'gold' };
     default:

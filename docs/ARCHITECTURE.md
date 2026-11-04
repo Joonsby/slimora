@@ -90,7 +90,8 @@ slime-mercenaries/
 │  │  ├─ main.tsx                 # 조립 지점: config · store · repo · platform → session → <App/>
 │  │  ├─ core/                    # ★ 순수 게임 규칙
 │  │  │  ├─ model/                # 타입: ids · effects · config · progress · battle · commands
-│  │  │  ├─ battle/               # engine (step · phase 전이) · damage (피해 · 흡혈 · 화상 계산)
+│  │  │  ├─ battle/               # engine (step · phase 전이 · 필살기) · damage (피해 · 흡혈 · 화상 계산)
+│  │  │  ├─ dungeon/              # 도전 던전 엔진 (다수 몬스터 · 스킬 · 시너지 · 보스 패턴) · rules — battle/damage · stats 를 그대로 쓴다 (DUNGEON.md)
 │  │  │  ├─ progression/          # applyCommand (강화 · 흡수 · 스테이지 진행/후퇴) · absorption (레벨 · 특성) · upgrades · initial
 │  │  │  ├─ stats.ts              # deriveSlimeStats · deriveMonsterStats (효과 합산 · 상한)
 │  │  │  ├─ lookup.ts             # 설정 조회

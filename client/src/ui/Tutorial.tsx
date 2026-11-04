@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { lastStageId } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
 import { traitTier } from '../core/progression/absorption';
+import { dungeonOpen } from '../core/progression/dungeon';
 import { anyFormAvailable } from '../core/progression/forms';
 import { essenceForRebirth } from '../core/progression/prestige';
 import { getUpgradeCost } from '../core/progression/upgrades';
@@ -18,6 +19,8 @@ interface Step {
   when: (s: GameStoreState, cfg: GameConfig) => boolean;
   /** 이렇게 되면 안내를 본 것으로 친다 (대개 그 메뉴를 열었을 때) */
   done?: (s: GameStoreState) => boolean;
+  /** 도전 던전 안에서만 보이는 안내 */
+  dungeon?: boolean;
 }
 
 /** 처음 몇 분 동안 한 번씩만 짚어 준다 */
@@ -29,6 +32,12 @@ const STEPS: Step[] = [
     when: (s) => s.progress.stage.highestCleared === 0 && s.progress.lifetime.goldEarned < 40,
   },
   {
+    id: 'ultimate',
+    target: '.ult-btn',
+    text: '필살기 게이지가 차면 눌러 보세요! 한 방에 큰 피해를 주고, 보스가 강타를 예고할 때 쓰면 끊을 수 있어요.',
+    when: (s) => s.progress.lifetime.goldEarned >= 10,
+  },
+  {
     id: 'upgrade',
     target: '.menu-item.tone-orange',
     text: '골드가 모였어요! 강화에서 공격력을 올려 보세요.',
@@ -37,6 +46,13 @@ const STEPS: Step[] = [
       return !!attack && Object.values(s.progress.slime.upgrades).every((lv) => !lv) && s.progress.gold >= getUpgradeCost(attack, 0);
     },
     done: (s) => s.sheet === 'upgrade',
+  },
+  {
+    id: 'dungeon',
+    target: '.dungeon-btn',
+    text: '도전 던전이 열렸어요! 스킬을 골라 조합하며 10 웨이브를 돌파해 보세요. 실패해도 보상은 남아요.',
+    when: (s, cfg) => dungeonOpen(s.progress, cfg) && s.progress.dungeon.runs === 0,
+    done: (s) => s.sheet === 'dungeon',
   },
   {
     id: 'challenge',
@@ -73,11 +89,20 @@ const STEPS: Step[] = [
     when: (s, cfg) => s.progress.prestige.count === 0 && essenceForRebirth(s.progress, cfg) > 0,
     done: (s) => s.sheet === 'rebirth',
   },
+  {
+    id: 'block',
+    target: '.ult-btn',
+    text: '보스가 내려찍기를 준비해요! 지금 필살기를 쓰면 끊고, 보스가 잠깐 휘청여요.',
+    when: (s) => s.dungeon?.casting === 'smash' && s.dungeon.ultReady,
+    done: (s) => s.dungeon?.casting !== 'smash',
+    dungeon: true,
+  },
 ];
 
 function currentStep(s: GameStoreState, cfg: GameConfig): Step | null {
-  if (!s.ready || s.sheet !== 'none' || s.offline) return null;
-  return STEPS.find((step) => !s.settings.tutorial.includes(step.id) && step.when(s, cfg)) ?? null;
+  if (!s.ready || s.sheet !== 'none' || s.offline || s.dungeonResult) return null;
+  const inDungeon = s.dungeon !== null;
+  return STEPS.find((step) => !!step.dungeon === inDungeon && !s.settings.tutorial.includes(step.id) && step.when(s, cfg)) ?? null;
 }
 
 /** 튜토리얼 말풍선. 화면을 막지 않고 짚기만 한다 — 짚은 메뉴를 누르거나 「알겠어요」로 넘어간다 */

@@ -183,3 +183,74 @@ export const IconArrow = (p: IconProps) => (
     <path d="M4 12 L19 12 M13 6 L19 12 L13 18" stroke="currentColor" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
+
+export const IconPortal = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 21 L4 10 C 4 5.6 7.6 2.5 12 2.5 C 16.4 2.5 20 5.6 20 10 L20 21 Z" fill="#5b3fa6" stroke="#2c1a5e" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M7 21 L7 10.5 C 7 7.6 9.2 5.5 12 5.5 C 14.8 5.5 17 7.6 17 10.5 L17 21 Z" fill="#a98bff" />
+    <path d="M12 9 C 14.6 10.4 14.6 13.4 12 14.5 C 9.8 15.4 9.4 12.6 11.4 12.2" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    <path d="M2.5 21 L21.5 21" stroke="#2c1a5e" strokeWidth="1.8" strokeLinecap="round" />
+  </Svg>
+);
+
+export const IconCrystal = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 2 L18.5 8 L12 22 L5.5 8 Z" fill="#7fe3ff" stroke="#1f6f8f" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M5.5 8 L18.5 8 M12 2 L9.5 8 L12 22 L14.5 8 Z" fill="none" stroke="#1f6f8f" strokeWidth="1" strokeLinejoin="round" />
+    <path d="M9 5.5 L10.5 4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
+  </Svg>
+);
+
+export const IconUltimate = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 1.5 L14 8 L20.5 5.5 L16.5 11 L22.5 13 L16 14.5 L18 21 L12 17 L6 21 L8 14.5 L1.5 13 L7.5 11 L3.5 5.5 L10 8 Z" fill="#ffd84a" stroke="#c25400" strokeWidth="1.3" strokeLinejoin="round" />
+    <circle cx="12" cy="12.2" r="3.2" fill="#fff6c7" />
+  </Svg>
+);
+
+export const IconFireburst = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 2 C 13 6 17 7 17 12 C 19 11 19.5 9.5 19.5 8.5 C 21.5 11 21.5 14 20 16.5 C 18.4 19.6 15.4 21.5 12 21.5 C 7.3 21.5 3.5 18 3.5 13.5 C 3.5 10 5.5 8 7 6.5 C 7 9 8 10.5 9.5 11 C 9 7.5 10.5 4.5 12 2 Z" fill="#ff7b39" stroke="#9c2f00" strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M12 21.5 C 9.5 21.5 8 19.6 8 17.6 C 8 15.5 10 14 10.5 12.5 C 11.8 14 14 15 14 17.5 C 14 19.8 13.2 21.5 12 21.5 Z" fill="#ffd84a" />
+  </Svg>
+);
+
+export const IconChain = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M13.5 1.5 L5 13.5 L11 13.5 L9.5 22.5 L19 9.5 L12.8 9.5 Z" fill="#8fd8ff" stroke="#1f5f9e" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M12 5.5 L8.5 11" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" />
+  </Svg>
+);
+
+export const IconSplit = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="6" cy="12" r="4" fill="#7be495" stroke="#1d7a44" strokeWidth="1.5" />
+    <circle cx="17.5" cy="5.5" r="3" fill="#7be495" stroke="#1d7a44" strokeWidth="1.4" />
+    <circle cx="19" cy="12" r="2.6" fill="#7be495" stroke="#1d7a44" strokeWidth="1.4" />
+    <circle cx="17.5" cy="18.5" r="3" fill="#7be495" stroke="#1d7a44" strokeWidth="1.4" />
+    <path d="M10 10.5 L14.5 7 M10.5 12 L16 12 M10 13.5 L14.5 17" stroke="#1d7a44" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="1.5 1.8" />
+  </Svg>
+);
+
+export const IconPoison = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10.5 3 C 13.5 7.5 16 10 16 13.5 C 16 16.8 13.6 19 10.5 19 C 7.4 19 5 16.8 5 13.5 C 5 10 7.5 7.5 10.5 3 Z" fill="#a3e635" stroke="#3f6212" strokeWidth="1.5" strokeLinejoin="round" />
+    <circle cx="18.5" cy="7.5" r="2.2" fill="#a3e635" stroke="#3f6212" strokeWidth="1.2" />
+    <circle cx="19" cy="17.5" r="1.5" fill="#a3e635" stroke="#3f6212" strokeWidth="1.1" />
+    <ellipse cx="8.3" cy="11" rx="1.4" ry="2" transform="rotate(25 8.3 11)" fill="#fff" opacity=".7" />
+  </Svg>
+);
+
+export const IconShield = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 2 L20 5 L20 11 C 20 16.2 16.6 20 12 22 C 7.4 20 4 16.2 4 11 L4 5 Z" fill="#5ee4ff" stroke="#11607a" strokeWidth="1.6" strokeLinejoin="round" />
+    <path d="M12 5 L17 7 L17 11 C 17 14.6 15 17.2 12 18.8 Z" fill="#c8f6ff" opacity=".8" />
+  </Svg>
+);
+
+export const IconFrenzy = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 18 L8.5 12 L3 6 L7.5 6 L13 12 L7.5 18 Z" fill="#ff4d6d" stroke="#8a1028" strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M10.5 18 L16 12 L10.5 6 L15 6 L20.5 12 L15 18 Z" fill="#ff8fa3" stroke="#8a1028" strokeWidth="1.4" strokeLinejoin="round" />
+  </Svg>
+);

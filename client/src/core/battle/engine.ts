@@ -15,6 +15,8 @@ export interface BattleInit {
   goldMul?: number;
   /** 함께 싸우는 용병 */
   allies?: AllyStats[];
+  /** 앞 전투에서 이어받는 필살기 게이지. 없으면 시작값 */
+  ultimateCharge?: number;
 }
 
 type Action = 'spawn' | 'revive' | 'slimeBurn' | 'monsterBurn' | 'slimeAttack' | 'monsterAttack' | 'bossTimeout' | 'allyAttack';
@@ -40,7 +42,47 @@ export function createBattle(init: BattleInit, cfg: GameConfig): BattleState {
     seq: 0,
     goldMul: init.goldMul ?? 1,
     allies: (init.allies ?? []).map((a) => ({ ...a, nextAttackAt: 0 })),
+    ultimate: { charge: Math.min(cfg.balance.ultimate.max, Math.max(0, init.ultimateCharge ?? cfg.balance.ultimate.start)), chargedAt: 0 },
   };
+}
+
+export function ultimateReady(state: BattleState, cfg: GameConfig): boolean {
+  return state.ultimate.charge >= cfg.balance.ultimate.max;
+}
+
+/**
+ * 필살기 — 지금 몬스터에게 공격력 × damageMul (피해감소 일부 무시). 강타를 예고한 몬스터면 그 강타를 끊고 공격을 미룬다.
+ * 게이지가 덜 찼거나 몬스터가 없으면 null
+ */
+export function useUltimate(state: BattleState, cfg: GameConfig): BattleEvent[] | null {
+  const u = cfg.balance.ultimate;
+  const m = state.monster;
+  if (state.phase !== 'fighting' || !m || state.ultimate.charge < u.max) return null;
+  const at = state.now;
+  const events: BattleEvent[] = [];
+  state.ultimate.charge = 0;
+  const heavy = m.stats.heavyAttack;
+  const interrupted = heavy !== null && (m.attacks + 1) % heavy.every === 0;
+  if (interrupted) {
+    m.attacks = 0;
+    m.nextAttackAt = Math.max(m.nextAttackAt, at + u.staggerMs);
+  }
+  const amount = Math.max(1, Math.floor(state.slime.stats.attack * u.damageMul * (1 - m.stats.damageReduction * (1 - u.armorPierce))));
+  events.push({ type: 'ultimate', at, amount, interrupted });
+  m.hp = Math.max(0, m.hp - amount);
+  events.push({ type: 'damage', at, to: 'monster', amount, crit: false, source: 'ultimate', reducedBy: 0 });
+  checkEnrage(m, 'monster', at, events);
+  if (m.hp <= 0) onDeath(state, 'monster', cfg, events);
+  return events;
+}
+
+/** 싸우는 동안에만 시간만큼 필살기가 찬다 */
+function chargeUltimate(state: BattleState, t: number, cfg: GameConfig): void {
+  const u = cfg.balance.ultimate;
+  if (state.phase === 'fighting' && t > state.ultimate.chargedAt) {
+    state.ultimate.charge = Math.min(u.max, state.ultimate.charge + (u.perSecond * (t - state.ultimate.chargedAt)) / 1000);
+  }
+  state.ultimate.chargedAt = t;
 }
 
 /** 편성이 바뀌면 다음 공격부터 새 용병이 싸운다 */
@@ -73,9 +115,11 @@ export function stepBattle(state: BattleState, dtMs: number, cfg: GameConfig): B
     if (i >= MAX_ACTIONS_PER_STEP) throw new Error('전투 행동이 너무 많다 — 공격 간격 설정을 확인');
     const next = nextAction(state);
     if (!next || next.at > until) break;
+    chargeUltimate(state, next.at, cfg);
     state.now = next.at;
     perform(state, next.action, cfg, events, next.index ?? 0);
   }
+  chargeUltimate(state, until, cfg);
   state.now = until;
   return events;
 }
@@ -296,6 +340,7 @@ function onDeath(state: BattleState, side: Side, cfg: GameConfig, events: Battle
     events.push({ type: 'monsterKilled', at, defId: m.defId, family: m.family, seq: m.seq, gold: m.gold, absorb: m.absorb });
     state.kills += 1;
     state.monster = null;
+    state.ultimate.charge = Math.min(cfg.balance.ultimate.max, state.ultimate.charge + cfg.balance.ultimate.perKill);
     // 몬스터가 쓰러지면 그 몬스터가 붙인 화상도 꺼진다
     state.slime.burn = null;
     heal(state.slime, Math.floor(state.slime.stats.maxHp * b.regenOnKillRatio), 'slime', 'regen', at, events);

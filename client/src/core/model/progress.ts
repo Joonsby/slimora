@@ -15,6 +15,21 @@ export interface ProgressState {
   daily: DailyProgress;
   /** 환생해도 남는다 */
   purchases: PurchaseProgress;
+  /** 도전 던전 기록 · 결정 · 연구. 환생해도 남는다 */
+  dungeon: DungeonProgress;
+}
+
+export interface DungeonProgress {
+  /** 깬 가장 높은 단계 (0 = 없음) */
+  cleared: number;
+  /** 단계별 최고 기록 (깬 웨이브 수) */
+  best: Record<number, number>;
+  /** 던전 결정 — 연구에 쓴다 */
+  crystals: number;
+  research: Record<string, number>;
+  /** 한 번이라도 켜 본 시너지 */
+  synergies: string[];
+  runs: number;
 }
 
 export interface PurchaseProgress {

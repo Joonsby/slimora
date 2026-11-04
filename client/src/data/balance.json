@@ -1,5 +1,5 @@
 {
-  "configVersion": "0.8.0",
+  "configVersion": "0.9.0",
   "slimeBase": { "maxHp": 120, "attack": 12, "attackIntervalMs": 1000, "critChance": 0.05, "critMultiplier": 1.5 },
   "caps": { "damageReduction": 0.7, "lifesteal": 0.5, "critChance": 0.6 },
   "battle": { "spawnDelayMs": 600, "regenOnKillRatio": 0.1, "deathDelayMs": 2000, "burnTickMs": 500 },
@@ -10,5 +10,6 @@
   "prestige": { "unlockStage": 10, "essenceBase": 3, "essenceGrowth": 1.19 },
   "gacha": { "single": 100, "ten": 900, "rates": { "common": 0.7, "rare": 0.25, "legendary": 0.05 }, "maxLevel": 10, "maxedRefund": 20 },
   "gems": { "starter": 100, "firstClearBase": 10, "firstClearPerStage": 1, "rebirth": 50, "adReward": 50, "adDailyLimit": 5 },
-  "party": { "slots": 2, "supportPerLevel": 0.15, "passivePerLevel": 0.25 }
+  "party": { "slots": 2, "supportPerLevel": 0.15, "passivePerLevel": 0.25 },
+  "ultimate": { "max": 100, "start": 55, "perSecond": 4, "perKill": 8, "damageMul": 6, "armorPierce": 0.5, "staggerMs": 1500, "staggerTakenMul": 1 }
 }

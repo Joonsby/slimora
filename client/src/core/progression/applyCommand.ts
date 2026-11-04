@@ -3,6 +3,7 @@ import type { GameCommand, RuleError } from '../model/commands';
 import type { GameConfig } from '../model/config';
 import type { ProgressState, StageProgress } from '../model/progress';
 import { err, ok, type Result } from '../result';
+import { finishDungeon, purchaseResearch } from './dungeon';
 import { checkEvolve } from './forms';
 import { claimAdGems, firstClearGems, setParty, summon } from './mercenary';
 import { purchaseLegacy, rebirth } from './prestige';
@@ -105,6 +106,12 @@ export function applyCommand(s: ProgressState, c: GameCommand, cfg: GameConfig):
 
     case 'grantPurchase':
       return grantPurchase(s, c.sku, c.orderId, cfg);
+
+    case 'finishDungeon':
+      return finishDungeon(s, c.summary, cfg);
+
+    case 'purchaseResearch':
+      return purchaseResearch(s, c.research, cfg);
   }
 }
 

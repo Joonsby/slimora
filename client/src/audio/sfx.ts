@@ -2,10 +2,35 @@
  * 효과음. 음원 파일 없이 Web Audio 로 합성한다 (번들이 가볍고 저작권 걱정이 없다).
  * 브라우저 · 웹뷰는 사용자가 처음 터치한 뒤에야 소리를 낼 수 있어서 그때 오디오를 연다
  */
-export type SfxName = 'hit' | 'crit' | 'hurt' | 'heavy' | 'kill' | 'coin' | 'level' | 'evolve' | 'clear' | 'fail' | 'boss' | 'buy' | 'tap' | 'ally' | 'summon' | 'legendary';
+export type SfxName =
+  | 'hit'
+  | 'crit'
+  | 'hurt'
+  | 'heavy'
+  | 'kill'
+  | 'coin'
+  | 'level'
+  | 'evolve'
+  | 'clear'
+  | 'fail'
+  | 'boss'
+  | 'buy'
+  | 'tap'
+  | 'ally'
+  | 'summon'
+  | 'legendary'
+  | 'ultimate'
+  | 'explosion'
+  | 'zap'
+  | 'shield'
+  | 'shieldBreak'
+  | 'warn'
+  | 'block'
+  | 'skill'
+  | 'synergy';
 
 /** 같은 소리가 너무 촘촘히 겹치지 않게 (배속 ×3 의 타격음 등) */
-const MIN_GAP_MS: Partial<Record<SfxName, number>> = { hit: 70, crit: 90, hurt: 90, coin: 60, tap: 40, ally: 90 };
+const MIN_GAP_MS: Partial<Record<SfxName, number>> = { hit: 70, crit: 90, hurt: 90, coin: 60, tap: 40, ally: 90, explosion: 120, zap: 110, kill: 60 };
 
 export class Sfx {
   private ctx: AudioContext | null = null;
@@ -103,6 +128,42 @@ export class Sfx {
       case 'legendary':
         this.notes(t, 'square', [784, 987.8, 1174.7, 1568], 0.09, 0.1);
         this.tone(t + 0.36, 'triangle', 2093, 2093, 0.5, 0.18);
+        break;
+      case 'ultimate':
+        this.tone(t, 'sawtooth', 160, 900, 0.18, 0.18);
+        this.noiseBurst(t + 0.16, 0.45, 400, 0.5);
+        this.tone(t + 0.16, 'sine', 120, 40, 0.5, 0.45);
+        this.notes(t + 0.2, 'triangle', [1046.5, 1568], 0.06, 0.14);
+        break;
+      case 'explosion':
+        this.noiseBurst(t, 0.22, 600, 0.32);
+        this.tone(t, 'sine', 180, 60, 0.2, 0.3);
+        break;
+      case 'zap':
+        this.tone(t, 'sawtooth', 1800, 400, 0.09, 0.12);
+        this.noiseBurst(t, 0.07, 4000, 0.16);
+        break;
+      case 'shield':
+        this.tone(t, 'sine', 600, 1200, 0.2, 0.14);
+        break;
+      case 'shieldBreak':
+        this.noiseBurst(t, 0.18, 3000, 0.28);
+        this.tone(t, 'triangle', 1400, 500, 0.18, 0.16);
+        break;
+      case 'warn':
+        this.notes(t, 'square', [880, 660, 880], 0.09, 0.09);
+        break;
+      case 'block':
+        this.tone(t, 'square', 1200, 1200, 0.05, 0.16);
+        this.tone(t + 0.04, 'triangle', 2400, 1800, 0.25, 0.16);
+        this.noiseBurst(t, 0.1, 5000, 0.2);
+        break;
+      case 'skill':
+        this.notes(t, 'triangle', [659.3, 880, 1318.5], 0.06, 0.2);
+        break;
+      case 'synergy':
+        this.notes(t, 'triangle', [659.3, 880, 1108.7, 1318.5, 1760], 0.06, 0.2);
+        this.tone(t + 0.3, 'sine', 1760, 2637, 0.35, 0.12);
         break;
     }
   }

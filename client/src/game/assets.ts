@@ -111,6 +111,14 @@ export function queueMonsters(scene: Phaser.Scene, config: GameConfig, ids: read
   return queued;
 }
 
+/** 던전 배경 — 무덤 장면을 보라빛으로 어둡게 쓴다 */
+export const DUNGEON_SCENE = 'giantTomb';
+
+/** 던전에 나오는 몬스터 (단계별 장 몬스터는 들어갈 때) — 보스 · 부하 */
+export function dungeonMonsters(config: GameConfig): string[] {
+  return [...new Set(Object.values(config.dungeon.bosses).flatMap((b) => [b.monster, ...b.cycle.flatMap((p) => (p.kind === 'summon' ? [p.monster] : []))]))];
+}
+
 /** 배경 텍스처를 큐에 넣는다. 이미 있으면 false */
 export function queueScene(scene: Phaser.Scene, key: string, res: number): boolean {
   if (scene.textures.exists(KEY.backdrop(key))) return false;

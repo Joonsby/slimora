@@ -6,12 +6,12 @@
     "boss": { "monster": "giantGolem", "timeLimitMs": 45000 },
     "stages": [
       { "name": "어스름 동굴", "scene": "duskCave" },
-      { "name": "이끼 바위길", "scene": "mossyPath" },
+      { "name": "이끼 바위길", "scene": "mossyPath", "overrides": { "hp": 56, "atk": 6 } },
       { "name": "그을린 둥지", "scene": "scorchedNest" },
       { "name": "박쥐 떼 굴", "scene": "batNest" },
-      { "name": "무너진 채석장", "scene": "quarry" },
-      { "name": "용암 협곡", "scene": "lavaCanyon" },
-      { "name": "갈림길 동굴", "scene": "duskCave" },
+      { "name": "무너진 채석장", "scene": "quarry", "overrides": { "hp": 100, "atk": 10 } },
+      { "name": "용암 협곡", "scene": "lavaCanyon", "overrides": { "hp": 150, "atk": 15 } },
+      { "name": "갈림길 동굴", "scene": "duskCave", "overrides": { "hp": 175, "atk": 17 } },
       { "name": "버려진 갱도", "scene": "quarry" },
       { "name": "골렘 문지기 길", "scene": "golemHall" },
       { "name": "거대 골렘의 방", "scene": "golemHall" }

@@ -30,6 +30,8 @@ export interface AutoPlayOptions {
   recruit?: boolean;
   /** 전투 배속. 시각(…AtMs)은 배속을 곱한 전투 시간으로 센다 */
   speed?: BattleSpeed;
+  /** 필살기가 차면 바로 쓴다 (손으로 하는 플레이어) */
+  ultimate?: boolean;
 }
 
 export interface AutoPlayResult {
@@ -47,6 +49,8 @@ export interface AutoPlayResult {
   rebirths: number;
   /** 환생할 때마다 [그 회차 최고 스테이지, 환생 시각] */
   runs: [number, number][];
+  /** 끝났을 때의 진행 (던전 시뮬레이션의 출발점) */
+  progress: ProgressState;
 }
 
 /** 가장 싼 강화부터 살 수 있는 만큼 사고, 실패하면 잠시 사냥하다 재도전하는 자동 플레이어. 밸런스 점검용 */
@@ -85,6 +89,7 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
   while (clock < opts.maxGameMs) {
     clock += step;
     session.tick(step);
+    if (opts.ultimate && session.ultimateGauge().usable) session.useUltimate();
     for (let next = cheapestUpgrade(cfg, store.getState().progress); next; next = cheapestUpgrade(cfg, store.getState().progress)) {
       if (!session.purchaseUpgrade(next).ok) break;
     }
@@ -134,6 +139,7 @@ export async function autoPlay(cfg: GameConfig, opts: AutoPlayOptions): Promise<
     firstClearAtMs,
     rebirths,
     runs,
+    progress: p,
   };
 }
 

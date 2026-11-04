@@ -1,8 +1,10 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { OfflineReward } from '../core/idle/offline';
 import type { BattleMode } from '../core/model/battle';
+import type { BossPatternKind, DungeonPhase, DungeonState, DungeonSummary, SkillId, SynergyId } from '../core/model/dungeon';
 import type { StageId } from '../core/model/ids';
 import type { ProgressState } from '../core/model/progress';
+import type { DungeonGains } from '../core/progression/dungeon';
 import { DEFAULT_SETTINGS, type GameSettings } from '../session/settings';
 
 /** 전투 상태 중 React 가 보여줄 저빈도 요약. HP 같은 프레임 단위 값은 넣지 않는다 */
@@ -15,7 +17,36 @@ export interface BattleHud {
   boss: boolean;
 }
 
-export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb' | 'evolve' | 'rebirth' | 'mercenary' | 'shop';
+/** 던전 한 판 동안 React 가 보여 줄 요약. 웨이브 · 선택 · 스킬이 바뀔 때만 갱신한다 */
+export interface DungeonHud {
+  level: number;
+  wave: number;
+  waves: number;
+  phase: DungeonPhase;
+  skills: Partial<Record<SkillId, number>>;
+  synergies: SynergyId[];
+  offer: SkillId[] | null;
+  rerolls: number;
+  /** 보스 웨이브면 보스 id */
+  boss: string | null;
+  /** 보스가 준비 중인 큰 공격 */
+  casting: BossPatternKind | null;
+  ultReady: boolean;
+}
+
+/** 끝난 던전의 결과 화면 */
+export interface DungeonResult {
+  summary: DungeonSummary;
+  gains: DungeonGains;
+  record: DungeonState['record'];
+  skills: Partial<Record<SkillId, number>>;
+  kills: number;
+  /** 전투 시간 (엔진 시각) */
+  durationMs: number;
+  abandoned: boolean;
+}
+
+export type Sheet = 'none' | 'upgrade' | 'stage' | 'absorb' | 'evolve' | 'rebirth' | 'mercenary' | 'shop' | 'dungeon';
 export type LogTone = 'normal' | 'good' | 'bad' | 'gold';
 
 export interface LogEntry {
@@ -38,6 +69,9 @@ export interface GameStoreState {
   sheet: Sheet;
   log: LogEntry[];
   offline: OfflineNotice | null;
+  /** 도전 던전 중이면 그 요약 */
+  dungeon: DungeonHud | null;
+  dungeonResult: DungeonResult | null;
 }
 
 export type GameStore = StoreApi<GameStoreState>;
@@ -53,6 +87,8 @@ export function createGameStore(progress: ProgressState): GameStore {
     sheet: 'none',
     log: [],
     offline: null,
+    dungeon: null,
+    dungeonResult: null,
   }));
 }
 

@@ -4,7 +4,7 @@ import type { BattleEvent } from '../model/battle';
 import { arena, ofType, run, stats } from '../../testing/fixtures';
 import { nextFloat } from '../rng';
 import { deriveSlimeStats } from '../stats';
-import { applySlimeStats, continueAsFarm, createBattle, stepBattle } from './engine';
+import { applySlimeStats, continueAsFarm, createBattle, stepBattle, useUltimate } from './engine';
 
 const farm = (cfg = arena(), slime = stats({ maxHp: 1000 })) => createBattle({ stageId: 1, mode: 'farm', slime, seed: 7 }, cfg);
 const challenge = (cfg = arena(), slime = stats({ maxHp: 1000 })) => createBattle({ stageId: 1, mode: 'challenge', slime, seed: 7 }, cfg);
@@ -185,5 +185,59 @@ describe('엔진 성질', () => {
       }
     }
     expect(deaths).toBeGreaterThan(0);
+  });
+});
+
+describe('필살기 (사냥터 · 스테이지)', () => {
+  const ult = (cfg = arena()) => cfg.balance.ultimate;
+
+  it('싸우는 동안에만 차고, 처치하면 더 찬다. 다음 전투로 이어받을 수 있다', () => {
+    const cfg = arena({ hp: 1_000_000 });
+    const u = ult(cfg);
+    const b = createBattle({ stageId: 1, mode: 'farm', slime: stats({ maxHp: 1_000_000 }), seed: 1, ultimateCharge: 0 }, cfg);
+    stepBattle(b, 600, cfg);
+    expect(b.ultimate.charge).toBe(0);
+    stepBattle(b, 1000, cfg);
+    expect(b.ultimate.charge).toBeCloseTo(u.perSecond);
+    expect(createBattle({ stageId: 1, mode: 'farm', slime: stats(), seed: 1, ultimateCharge: 42 }, cfg).ultimate.charge).toBe(42);
+    expect(createBattle({ stageId: 1, mode: 'farm', slime: stats(), seed: 1 }, cfg).ultimate.charge).toBe(u.start);
+
+    const killCfg = arena({ hp: 10 });
+    const kill = createBattle({ stageId: 1, mode: 'farm', slime: stats({ attack: 1000, maxHp: 1000 }), seed: 1, ultimateCharge: 0 }, killCfg);
+    run(kill, killCfg, 1600);
+    expect(kill.ultimate.charge).toBeCloseTo(u.perKill + u.perSecond);
+  });
+
+  it('게이지가 덜 찼으면 쓸 수 없고, 다 차면 큰 피해 — 피해감소는 일부만 받는다', () => {
+    const cfg = arena({ hp: 1_000_000, monster: { effects: [{ kind: 'damageReduction', ratio: 0.4 }] } });
+    const u = ult(cfg);
+    const b = createBattle({ stageId: 1, mode: 'farm', slime: stats({ attack: 10, maxHp: 1_000_000 }), seed: 1, ultimateCharge: u.max - 1 }, cfg);
+    stepBattle(b, 600, cfg);
+    expect(useUltimate(b, cfg)).toBeNull();
+    b.ultimate.charge = u.max;
+    const events = useUltimate(b, cfg)!;
+    const amount = Math.floor(10 * u.damageMul * (1 - 0.4 * (1 - u.armorPierce)));
+    expect(events).toEqual([
+      { type: 'ultimate', at: 600, amount, interrupted: false },
+      { type: 'damage', at: 600, to: 'monster', amount, crit: false, source: 'ultimate', reducedBy: 0 },
+    ]);
+    expect(b.ultimate.charge).toBe(0);
+  });
+
+  it('강타를 예고한 뒤 쓰면 그 강타를 끊고 공격을 미룬다', () => {
+    const cfg = arena({ hp: 1_000_000, atk: 10, monster: { effects: [{ kind: 'heavyAttack', every: 3, multiplier: 3 }] } });
+    const b = createBattle({ stageId: 1, mode: 'farm', slime: stats({ attack: 1, maxHp: 1_000_000 }), seed: 1, ultimateCharge: 0 }, cfg);
+    const warned = run(b, cfg, 2700);
+    expect(ofType(warned, 'heavyWarning')).toHaveLength(1);
+    b.ultimate.charge = ult(cfg).max;
+    expect(useUltimate(b, cfg)![0]).toMatchObject({ type: 'ultimate', interrupted: true });
+    // 다음 공격은 1.5초 미뤄지고 강타 주기는 처음부터 — 그 뒤 예고가 다시 온다
+    const after = run(b, cfg, 2600);
+    const hits = ofType(after, 'damage').filter((d) => d.to === 'slime');
+    expect(hits.map((d) => [d.at, !!d.heavy])).toEqual([
+      [4200, false],
+      [5200, false],
+    ]);
+    expect(ofType(after, 'heavyWarning').map((w) => w.at)).toEqual([5200]);
   });
 });

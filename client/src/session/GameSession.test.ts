@@ -252,3 +252,96 @@ describe('결제 지급', () => {
     expect(store.getState().progress.lifetime.goldEarned).toBe(1e9);
   });
 });
+
+describe('필살기', () => {
+  it('사냥터 필살기는 다 찬 순간 한 번 알리고, 쓰면 몬스터에게 큰 피해', async () => {
+    const { session, events, advance } = setup();
+    await session.start();
+    expect(session.useUltimate()).toBe(false);
+    advance(20_000);
+    expect(events.filter((e) => e.type === 'ultimateReady')).toHaveLength(1);
+    while (!session.ultimateGauge().usable) advance(100);
+    expect(session.useUltimate()).toBe(true);
+    expect(events.filter((e) => e.type === 'ultimate')).toHaveLength(1);
+    // 필살기로 쓰러뜨리면 처치 충전만 남는다
+    expect(session.ultimateGauge().charge).toBeLessThanOrEqual(session.config.balance.ultimate.perKill);
+  });
+});
+
+describe('도전 던전', () => {
+  async function opened() {
+    const ctx = setup();
+    await ctx.session.start();
+    const p = ctx.store.getState().progress;
+    ctx.store.setState({ progress: { ...p, stage: { ...p.stage, highestCleared: ctx.session.config.dungeon.unlockStage } } });
+    return ctx;
+  }
+
+  it('열리기 전에는 들어갈 수 없다', async () => {
+    const { session } = setup();
+    await session.start();
+    expect(session.startDungeon(1)).toBe(false);
+    expect(session.dungeonView()).toBeNull();
+  });
+
+  it('들어가면 스킬을 고르고, 그동안 사냥터 전투는 멈춘다', async () => {
+    const { session, store, events, advance } = await opened();
+    advance(1000);
+    const battleNow = session.view()!.now;
+    expect(session.startDungeon(1)).toBe(true);
+    expect(events.at(-1)).toMatchObject({ type: 'dungeonStarted', level: 1 });
+    const hud = store.getState().dungeon!;
+    expect(hud).toMatchObject({ level: 1, wave: 0, phase: 'choosing' });
+    expect(hud.offer).toHaveLength(3);
+    expect(session.chooseSkill(hud.offer![0]!)).toBe(true);
+    expect(store.getState().dungeon).toMatchObject({ wave: 1, phase: 'fighting', offer: null });
+    advance(5000);
+    expect(session.dungeonView()!.now).toBeGreaterThan(0);
+    expect(session.view()!.now).toBe(battleNow);
+  });
+
+  it('포기하면 그때까지의 보상과 결정을 받고 결과 화면이 뜬다. 닫으면 사냥터로 돌아간다', async () => {
+    const { session, store, events, advance, repo } = await opened();
+    session.startDungeon(1);
+    session.chooseSkill(store.getState().dungeon!.offer![0]!);
+    advance(20_000);
+    const killed = session.dungeonView()!.kills;
+    const saves = (repo as MemorySaveRepository).saveCount;
+    session.abandonDungeon();
+    const result = store.getState().dungeonResult!;
+    expect(result).toMatchObject({ abandoned: true, kills: killed });
+    expect(store.getState().progress.dungeon.runs).toBe(1);
+    expect(store.getState().progress.gold).toBeGreaterThanOrEqual(result.summary.rewards.gold);
+    expect((repo as MemorySaveRepository).saveCount).toBe(saves + 1);
+    expect(events.filter((e) => e.type === 'dungeonEnded')).toHaveLength(1);
+
+    session.closeDungeon();
+    expect(store.getState()).toMatchObject({ dungeon: null, dungeonResult: null });
+    expect(session.dungeonView()).toBeNull();
+    const before = session.view()!.now;
+    advance(1000);
+    expect(session.view()!.now).toBeGreaterThan(before);
+  });
+
+  it('다시 도전하면 같은 단계를 새로 연다', async () => {
+    const { session, store } = await opened();
+    session.startDungeon(1);
+    session.chooseSkill(store.getState().dungeon!.offer![0]!);
+    session.abandonDungeon();
+    session.closeDungeon(true);
+    expect(store.getState().dungeon).toMatchObject({ level: 1, wave: 0, phase: 'choosing' });
+    expect(store.getState().dungeonResult).toBeNull();
+  });
+
+  it('던전 이벤트는 따로 구독한다 — 사냥터 이벤트와 섞이지 않는다', async () => {
+    const { session, store, events, advance } = await opened();
+    const dungeonEvents: string[] = [];
+    session.onDungeonEvents((e) => dungeonEvents.push(...e.map((x) => x.type)));
+    session.startDungeon(1);
+    session.chooseSkill(store.getState().dungeon!.offer![0]!);
+    const seen = events.length;
+    advance(10_000);
+    expect(dungeonEvents).toContain('dSpawn');
+    expect(events.slice(seen).filter((e) => e.type === 'monsterSpawned' || e.type === 'attack')).toHaveLength(0);
+  });
+});

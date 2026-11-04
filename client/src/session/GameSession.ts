@@ -1,7 +1,20 @@
-import { applySlimeStats, continueAsFarm, createBattle, isBossFight, isFinished, setAllies, setGoldMultiplier, stepBattle } from '../core/battle/engine';
+import { applySlimeStats, continueAsFarm, createBattle, isBossFight, isFinished, setAllies, setGoldMultiplier, stepBattle, ultimateReady, useUltimate } from '../core/battle/engine';
+import {
+  chooseDungeonSkill,
+  createDungeon,
+  isDungeonOver,
+  rerollDungeonOffer,
+  setDungeonFocus,
+  stepDungeon,
+  summarizeDungeon,
+  useDungeonUltimate,
+  waveCount,
+} from '../core/dungeon/engine';
 import { lastStageId } from '../core/lookup';
 import { computeOfflineReward, type OfflineReward } from '../core/idle/offline';
 import type { BattleEvent, BattleMode, BattleState } from '../core/model/battle';
+import type { DungeonEvent, DungeonState, SkillId } from '../core/model/dungeon';
+import { dungeonGains, dungeonInit, isLevelUnlocked } from '../core/progression/dungeon';
 import type { GameCommand, RuleError } from '../core/model/commands';
 import type { GameConfig } from '../core/model/config';
 import type { FormId, LegacyId, MercenaryId, StageId, UpgradeId } from '../core/model/ids';
@@ -30,10 +43,18 @@ export type SessionEvent =
   /** bonus = 광고를 보고 더 받은 몫 */
   | { type: 'offlineReward'; at: number; gold: number; awayMs: number; bonus: boolean }
   | { type: 'rebirth'; at: number; count: number; essence: number }
-  | { type: 'gemsGained'; at: number; amount: number; reason: 'firstClear' | 'rebirth' | 'ad' }
+  | { type: 'gemsGained'; at: number; amount: number; reason: 'firstClear' | 'rebirth' | 'ad' | 'dungeon' }
   | { type: 'partyChanged'; at: number }
-  | { type: 'purchased'; at: number; sku: string; name: string };
+  | { type: 'purchased'; at: number; sku: string; name: string }
+  /** 사냥터 · 스테이지 전투의 필살기가 다 찼다 */
+  | { type: 'ultimateReady'; at: number }
+  | { type: 'dungeonStarted'; at: number; level: number }
+  /** 던전이 끝나 결과를 반영했다 (결과 화면이 뜬다) */
+  | { type: 'dungeonEnded'; at: number; level: number; cleared: boolean; waves: number }
+  /** 결과 화면을 닫고 사냥터로 돌아왔다 */
+  | { type: 'dungeonClosed'; at: number };
 export type SessionListener = (events: readonly SessionEvent[]) => void;
+export type DungeonListener = (events: readonly DungeonEvent[]) => void;
 export type StartStatus = 'new' | 'restored' | 'recovered' | 'reset';
 
 export interface SessionDeps {
@@ -43,6 +64,9 @@ export interface SessionDeps {
   platform: PlatformAdapter;
   seed?: number;
 }
+
+/** 던전 화면 요약(웨이브 · 선택 · 스킬)을 다시 계산할 이벤트 */
+const HUD_EVENTS = new Set<DungeonEvent['type']>(['dOffer', 'dSkill', 'dSynergy', 'dWave', 'dWaveClear', 'dSpawn', 'dCleared', 'dFailed', 'dBossCast', 'dBossImpact', 'dUltReady', 'dUltimate']);
 
 /** 프레임 하나에서 진행할 최대 시간. 더 긴 공백은 따라잡지 않는다 */
 export const MAX_FRAME_MS = 250;
@@ -66,6 +90,12 @@ export class GameSession {
   /** 화면이 가려진 시각. 돌아오면 그 사이를 오프라인 보상으로 준다 */
   private hiddenAt: number | null = null;
   private offlineCount = 0;
+  /** 도전 던전 한 판. 결과 화면을 닫을 때까지 남는다 (그동안 사냥터 전투는 멈춘다) */
+  private dungeon: DungeonState | null = null;
+  private dungeonCount = 0;
+  private readonly dungeonListeners = new Set<DungeonListener>();
+  /** 사냥터 필살기가 다 찼던가 — 처음 찬 순간만 알린다 */
+  private ultimateWasReady = false;
 
   constructor(private readonly deps: SessionDeps) {
     this.seed = deps.seed ?? Math.floor(Math.random() * 0xffffffff);
@@ -115,19 +145,188 @@ export class GameSession {
     this.unsubscribeVisibility?.();
     this.listeners.clear();
     this.saveListeners.clear();
+    this.dungeonListeners.clear();
   }
 
-  /** Phaser update 에서 매 프레임 호출 */
+  /** Phaser update 에서 매 프레임 호출. 던전 중이면 던전만 진행한다 */
   tick(frameMs: number): void {
-    const battle = this.battle;
-    if (!battle || this.deps.platform.now() < this.pausedUntil) return;
     const dt = Math.min(Math.max(frameMs, 0), MAX_FRAME_MS) * this.deps.store.getState().settings.battleSpeed;
-    const battleEvents = stepBattle(battle, dt, this.deps.config);
+    if (this.dungeon) {
+      this.tickDungeon(dt);
+    } else {
+      const battle = this.battle;
+      if (!battle || this.deps.platform.now() < this.pausedUntil) return;
+      const battleEvents = stepBattle(battle, dt, this.deps.config);
+      const after: SessionEvent[] = [];
+      for (const e of battleEvents) this.handleBattleEvent(e, after);
+      const events: SessionEvent[] = [...battleEvents, ...this.takeGrowth(), ...after];
+      const ready = ultimateReady(battle, this.deps.config);
+      if (ready && !this.ultimateWasReady) events.push({ type: 'ultimateReady', at: battle.now });
+      this.ultimateWasReady = ready;
+      if (events.length > 0) this.emit(events);
+    }
+    if (this.dirty && this.deps.platform.now() - this.lastSavedAt >= SAVE_INTERVAL_MS) void this.saveNow();
+  }
+
+  /** 필살기 — 던전이면 던전, 아니면 사냥터 전투. 게이지가 덜 찼으면 false */
+  useUltimate(): boolean {
+    const { config } = this.deps;
+    if (this.dungeon) {
+      const events = useDungeonUltimate(this.dungeon, config);
+      if (!events) return false;
+      this.afterDungeonEvents(events);
+      return true;
+    }
+    const battle = this.battle;
+    const battleEvents = battle ? useUltimate(battle, config) : null;
+    if (!battleEvents) return false;
+    this.ultimateWasReady = false;
+    this.completeTutorial('ultimate');
     const after: SessionEvent[] = [];
     for (const e of battleEvents) this.handleBattleEvent(e, after);
-    const events: SessionEvent[] = [...battleEvents, ...this.takeGrowth(), ...after];
-    if (events.length > 0) this.emit(events);
-    if (this.dirty && this.deps.platform.now() - this.lastSavedAt >= SAVE_INTERVAL_MS) void this.saveNow();
+    this.emit([...battleEvents, ...this.takeGrowth(), ...after]);
+    return true;
+  }
+
+  /** 지금 전투의 필살기 게이지 (화면이 자주 읽는다) */
+  ultimateGauge(): { charge: number; max: number; usable: boolean } {
+    const { config } = this.deps;
+    const d = this.dungeon;
+    if (d) {
+      const max = config.dungeon.ultimate.max;
+      return { charge: d.ult.charge, max, usable: d.ult.charge >= max && d.phase === 'fighting' && d.monsters.length > 0 };
+    }
+    const b = this.battle;
+    const max = config.balance.ultimate.max;
+    if (!b) return { charge: 0, max, usable: false };
+    return { charge: b.ultimate.charge, max, usable: b.ultimate.charge >= max && b.phase === 'fighting' && b.monster !== null };
+  }
+
+  // ── 도전 던전 ─────────────────────────────────────────
+
+  /** 던전 한 판을 연다. 열리지 않은 단계거나 이미 던전 중이면 false */
+  startDungeon(level: number): boolean {
+    const { config, store, platform } = this.deps;
+    if (this.dungeon || !isLevelUnlocked(this.progress(), level, config)) return false;
+    const seed = seedFrom(this.seed, 0xd0, ++this.dungeonCount);
+    const { state, events } = createDungeon(dungeonInit(this.progress(), level, seed, config), config);
+    this.dungeon = state;
+    store.setState({ sheet: 'none', dungeonResult: null });
+    this.updateDungeonHud();
+    this.emit([{ type: 'dungeonStarted', at: 0, level }]);
+    this.emitDungeon(events);
+    this.lastSavedAt = platform.now();
+    return true;
+  }
+
+  chooseSkill(skill: SkillId): boolean {
+    const events = this.dungeon ? chooseDungeonSkill(this.dungeon, skill, this.deps.config) : null;
+    if (!events) return false;
+    this.afterDungeonEvents(events);
+    return true;
+  }
+
+  rerollSkills(): boolean {
+    const events = this.dungeon ? rerollDungeonOffer(this.dungeon, this.deps.config) : null;
+    if (!events) return false;
+    this.afterDungeonEvents(events);
+    return true;
+  }
+
+  /** 공격 대상을 고른다. null 이면 맨 앞 적 */
+  focusMonster(seq: number | null): boolean {
+    return this.dungeon !== null && !isDungeonOver(this.dungeon) && setDungeonFocus(this.dungeon, seq);
+  }
+
+  /** 포기 — 그때까지 깬 웨이브와 처치 보상은 받는다 */
+  abandonDungeon(): void {
+    const d = this.dungeon;
+    if (!d || isDungeonOver(d)) return;
+    d.phase = 'failed';
+    this.finishDungeon(true);
+  }
+
+  /** 결과 화면을 닫고 사냥터로 돌아간다. again 이면 같은 단계를 바로 다시 연다 */
+  closeDungeon(again = false): void {
+    const d = this.dungeon;
+    if (!d || !isDungeonOver(d)) return;
+    this.dungeon = null;
+    this.deps.store.setState({ dungeon: null, dungeonResult: null });
+    this.emit([{ type: 'dungeonClosed', at: 0 }]);
+    if (again) this.startDungeon(d.level);
+  }
+
+  /** 던전 렌더링용 읽기 전용 뷰. 고치지 말 것 */
+  dungeonView(): Readonly<DungeonState> | null {
+    return this.dungeon;
+  }
+
+  onDungeonEvents(listener: DungeonListener): () => void {
+    this.dungeonListeners.add(listener);
+    return () => this.dungeonListeners.delete(listener);
+  }
+
+  private tickDungeon(dt: number): void {
+    const d = this.dungeon!;
+    if (isDungeonOver(d)) return;
+    const events = stepDungeon(d, dt, this.deps.config);
+    if (events.length > 0) this.afterDungeonEvents(events);
+  }
+
+  private afterDungeonEvents(events: readonly DungeonEvent[]): void {
+    this.emitDungeon(events);
+    if (events.some((e) => HUD_EVENTS.has(e.type))) this.updateDungeonHud();
+    if (this.dungeon && isDungeonOver(this.dungeon) && !this.deps.store.getState().dungeonResult) this.finishDungeon(false);
+  }
+
+  /** 결과를 진행에 반영하고 결과 화면을 띄운다 */
+  private finishDungeon(abandoned: boolean): void {
+    const d = this.dungeon!;
+    const { config, store } = this.deps;
+    const summary = summarizeDungeon(d);
+    const gains = dungeonGains(this.progress(), summary, config);
+    const gemsBefore = this.progress().gems;
+    const applied = this.apply({ type: 'finishDungeon', summary });
+    if (!applied.ok) console.warn('던전 결과를 반영하지 못했다', applied.error);
+    store.setState({ dungeonResult: { summary, gains, record: d.record, skills: d.skills, kills: d.kills, durationMs: d.now, abandoned } });
+    this.updateDungeonHud();
+    const gained = this.progress().gems - gemsBefore;
+    this.emit([
+      ...this.takeGrowth(),
+      { type: 'dungeonEnded', at: d.now, level: d.level, cleared: summary.cleared, waves: summary.waves },
+      ...(gained > 0 ? [{ type: 'gemsGained' as const, at: d.now, amount: gained, reason: 'dungeon' as const }] : []),
+    ]);
+    void this.saveNow();
+  }
+
+  private updateDungeonHud(): void {
+    const d = this.dungeon;
+    const { config, store } = this.deps;
+    if (!d) {
+      store.setState({ dungeon: null });
+      return;
+    }
+    const bossState = d.monsters.find((m) => m.boss)?.boss;
+    store.setState({
+      dungeon: {
+        level: d.level,
+        wave: d.wave,
+        waves: waveCount(config),
+        phase: d.phase,
+        skills: d.skills,
+        synergies: d.synergies,
+        offer: d.offer,
+        rerolls: d.rerolls,
+        boss: bossState?.id ?? config.dungeon.waves.bosses[String(d.wave)] ?? null,
+        casting: bossState?.casting?.pattern.kind ?? null,
+        ultReady: d.ult.charge >= config.dungeon.ultimate.max,
+      },
+    });
+  }
+
+  private emitDungeon(events: readonly DungeonEvent[]): void {
+    if (events.length === 0) return;
+    for (const listener of this.dungeonListeners) listener(events);
   }
 
   /** UI 의 유일한 쓰기 경로 */
@@ -453,6 +652,8 @@ export class GameSession {
         seed: seedFrom(this.seed, current, this.battleCount),
         goldMul: bonus.gold,
         allies: partyAllies(this.progress().mercenaries, this.deps.config),
+        // 필살기 게이지는 다음 전투로 이어진다
+        ultimateCharge: this.battle?.ultimate.charge,
       },
       this.deps.config,
     );

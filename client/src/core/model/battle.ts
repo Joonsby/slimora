@@ -74,6 +74,8 @@ export interface BattleState {
   goldMul: number;
   /** 함께 싸우는 용병. 싸우는 중에만 공격한다 */
   allies: AllyState[];
+  /** 필살기 게이지. 싸우는 동안 차고, chargedAt = 마지막으로 충전을 계산한 시각 */
+  ultimate: { charge: number; chargedAt: number };
 }
 
 export interface AllyStats {
@@ -90,7 +92,9 @@ export interface AllyState extends AllyStats {
 export type BattleEvent =
   | { type: 'monsterSpawned'; at: number; defId: MonsterId; seq: number; maxHp: number; boss: boolean }
   | { type: 'attack'; at: number; by: Side }
-  | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn' | 'ally'; reducedBy: number; heavy?: boolean }
+  | { type: 'damage'; at: number; to: Side; amount: number; crit: boolean; source: 'hit' | 'burn' | 'ally' | 'ultimate'; reducedBy: number; heavy?: boolean }
+  /** 필살기. interrupted = 예고된 강타를 끊었다 */
+  | { type: 'ultimate'; at: number; amount: number; interrupted: boolean }
   | { type: 'allyAttack'; at: number; index: number; id: string }
   | { type: 'heal'; at: number; to: Side; amount: number; source: 'lifesteal' | 'regen' }
   | { type: 'burnApplied'; at: number; to: Side; stacks: number }

@@ -1,4 +1,5 @@
 import type { BattleMode } from './battle';
+import type { DungeonSummary } from './dungeon';
 import type { FamilyId, FormId, LegacyId, MercenaryId, StageId, UpgradeId } from './ids';
 
 /** 진행 상태를 바꾸는 유일한 경로 */
@@ -19,7 +20,10 @@ export type GameCommand =
   /** 광고를 끝까지 본 보상. day = 오늘 날짜 */
   | { type: 'claimAdGems'; day: string }
   /** 스토어 결제가 끝난 주문을 지급한다. 같은 orderId 는 한 번만 */
-  | { type: 'grantPurchase'; sku: string; orderId: string };
+  | { type: 'grantPurchase'; sku: string; orderId: string }
+  /** 도전 던전 한 판의 결과 (엔진이 낸 요약) */
+  | { type: 'finishDungeon'; summary: DungeonSummary }
+  | { type: 'purchaseResearch'; research: string };
 
 export type RuleError =
   | { code: 'NOT_ENOUGH_GOLD'; need: number; have: number }
@@ -37,4 +41,6 @@ export type RuleError =
   | { code: 'NOT_ENOUGH_GEMS'; need: number; have: number }
   | { code: 'INVALID_PARTY' }
   | { code: 'AD_LIMIT' }
-  | { code: 'UNKNOWN_PRODUCT' };
+  | { code: 'UNKNOWN_PRODUCT' }
+  | { code: 'UNKNOWN_RESEARCH' }
+  | { code: 'NOT_ENOUGH_CRYSTALS'; need: number; have: number };

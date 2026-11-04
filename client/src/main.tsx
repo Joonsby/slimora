@@ -28,6 +28,7 @@ import { App } from './ui/App';
 import { attachBattleLog } from './ui/battleLogFeed';
 import { GameProvider } from './ui/GameContext';
 import './ui/styles.css';
+import './ui/dungeon.css';
 
 // 조립 지점: 설정 · 스토어 · 저장소 · 플랫폼 → 세션 → 화면
 const root = createRoot(document.getElementById('root')!);
@@ -66,6 +67,8 @@ if (configErrors.length > 0) {
   const repo = new LocalStorageSaveRepository(safeLocalStorage() ?? createMemoryStorage());
   const platform = new WebPlatform();
   const session = new GameSession({ config: gameConfig, store, repo, platform });
+  // 개발 서버에서만 — 콘솔로 진행을 바꿔 보며 확인할 수 있게
+  if (import.meta.env.DEV) Object.assign(window, { slimora: { session, store } });
   const cloud = createCloudStore();
   const sync = cloud
     ? new CloudSync({
