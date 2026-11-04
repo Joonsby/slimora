@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <!-- 세로 전체 화면 · 핀치 줌 금지 (앱인토스 체크리스트) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #17212f; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+      #unity-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #17212f; }
+      #loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: #dfe9f5; font: 600 16px system-ui, sans-serif; }
+      #bar { width: 60%; max-width: 280px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.15); overflow: hidden; }
+      #fill { height: 100%; width: 0; background: #5ee08a; transition: width .15s; }
+      #error { display: none; color: #ff8a80; padding: 0 24px; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" tabindex="-1"></canvas>
+    <div id="loading"><div>슬라임 용병단</div><div id="bar"><div id="fill"></div></div><div id="error"></div></div>
+    <script>
+      const t0 = performance.now();
+      const config = {
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#if MEMORY_FILENAME
+        memoryUrl: "Build/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+        // 고해상도 기기에서 픽셀 수를 줄여 발열 · 메모리를 아낀다
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        showBanner: (msg, type) => { if (type === 'error') { const e = document.getElementById('error'); e.style.display = 'block'; e.textContent = msg; } },
+      };
+      const script = document.createElement("script");
+      script.src = "Build/{{{ LOADER_FILENAME }}}";
+      script.onload = () => {
+        createUnityInstance(document.querySelector("#unity-canvas"), config, (p) => {
+          document.getElementById('fill').style.width = (100 * p) + '%';
+        }).then((instance) => {
+          window.slimoraUnity = instance;
+          window.slimoraLoadMs = Math.round(performance.now() - t0);
+          document.getElementById('loading').remove();
+        }).catch((message) => {
+          const e = document.getElementById('error'); e.style.display = 'block'; e.textContent = '불러오지 못했어요: ' + message;
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>

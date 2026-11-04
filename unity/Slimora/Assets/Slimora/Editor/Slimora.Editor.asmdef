@@ -1,0 +1,8 @@
+{
+    "name": "Slimora.Editor",
+    "rootNamespace": "Slimora.EditorTools",
+    "references": ["Slimora.Core", "Slimora.Runtime", "UnityEngine.UI"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "autoReferenced": false
+}

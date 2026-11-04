@@ -1,0 +1,10 @@
+{
+    "name": "Slimora.Core",
+    "rootNamespace": "Slimora.Core",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "autoReferenced": true,
+    "noEngineReferences": true
+}
