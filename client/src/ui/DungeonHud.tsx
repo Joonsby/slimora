@@ -1,20 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PATTERN_COUNTER } from '../core/dungeon/engine';
+import type { GameConfig } from '../core/model/config';
 import { SKILL_IDS, type BossPatternKind } from '../core/model/dungeon';
 import { COUNTER_HINT, PATTERN_NAME, SKILL_ICON } from './dungeonText';
 import { useGame, useGameContext } from './GameContext';
 import { IconCrown, IconPortal } from './icons';
 import { UltimateButton } from './UltimateButton';
 
-/** 던전 위쪽 — 단계 · 웨이브 · 시너지 · 보스. 오른쪽 위는 토스 닫기 버튼 자리라 비워 둔다 */
+/**
+ * 던전 위쪽 — 단계 · 웨이브 · 시너지 · 보스. 오른쪽 위는 토스 닫기 버튼 자리라 비워 둔다.
+ * 일시정지 · 포기 확인 창은 앱 전체에 띄운다 (HUD 는 높이가 내용만큼이고 터치를 통과시킨다)
+ */
 export function DungeonHud() {
   const { session, config } = useGameContext();
   const hud = useGame((s) => s.dungeon);
   const firstRun = useGame((s) => s.progress.dungeon.runs === 0);
   const [confirm, setConfirm] = useState(false);
+  // 포기를 물으려고 멈췄으면 「계속하기」에서 다시 진행한다
+  const pausedForConfirm = useRef(false);
+  const askGiveUp = () => {
+    pausedForConfirm.current = session.pauseDungeon();
+    setConfirm(true);
+  };
+  const cancelGiveUp = () => {
+    setConfirm(false);
+    if (pausedForConfirm.current) session.continueDungeon();
+    pausedForConfirm.current = false;
+  };
   if (!hud) return null;
   const over = hud.phase === 'cleared' || hud.phase === 'failed';
-  return (
+  const header = (
     <header className="hud dungeon-hud">
       <div className="hud-top">
         <span className="stage-pill dungeon-pill">
@@ -27,9 +43,16 @@ export function DungeonHud() {
           </span>
         </span>
         {!over && (
-          <button className="hud-btn give-up" onClick={() => setConfirm(true)}>
-            포기
-          </button>
+          <span className="dungeon-hud-actions">
+            {hud.phase !== 'choosing' && (
+              <button className="hud-btn pause-btn" aria-label="일시정지" disabled={hud.paused !== null} onClick={() => session.pauseDungeon()}>
+                <span aria-hidden="true">Ⅱ</span>
+              </button>
+            )}
+            <button className="hud-btn give-up" onClick={askGiveUp}>
+              포기
+            </button>
+          </span>
         )}
       </div>
       <div className="wave-track" role="progressbar" aria-valuenow={hud.wave} aria-valuemin={0} aria-valuemax={hud.waves} aria-label={`웨이브 ${hud.wave}/${hud.waves}`}>
@@ -51,39 +74,82 @@ export function DungeonHud() {
       </div>
       {hud.synergies.length > 0 && (
         <div className="synergy-chips">
-          {hud.synergies.map((id) => (
+          {/* 좁은 화면에서 두 줄이 되면 전장을 가린다 — 셋까지만, 나머지는 개수로 */}
+          {hud.synergies.slice(0, MAX_CHIPS).map((id) => (
             <span key={id} className="synergy-chip">
               ◆ {config.dungeon.synergies[id].name}
             </span>
           ))}
+          {hud.synergies.length > MAX_CHIPS && <span className="synergy-chip more">+{hud.synergies.length - MAX_CHIPS}</span>}
         </div>
       )}
       {hud.boss && hud.phase === 'fighting' && <BossBar />}
-      {firstRun && hud.wave <= 2 && hud.phase === 'fighting' && <p className="dungeon-tip">적을 누르면 그 적부터 공격해요</p>}
-      {confirm && (
-        <div className="modal-backdrop" onClick={() => setConfirm(false)}>
-          <div className="modal confirm" onClick={(e) => e.stopPropagation()}>
-            <h2>던전을 포기할까요?</h2>
-            <p className="muted">지금까지 깬 웨이브와 처치 보상은 받아요.</p>
-            <div className="modal-actions">
-              <button
-                className="btn-ad"
-                onClick={() => {
-                  setConfirm(false);
-                  session.abandonDungeon();
-                }}
-              >
-                포기하기
-              </button>
-              <button className="btn-ok" onClick={() => setConfirm(false)}>
-                계속하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {firstRun && hud.wave <= 2 && hud.phase === 'fighting' && !hud.paused && <p className="dungeon-tip">적을 누르면 그 적부터 공격해요</p>}
+      {!firstRun && hud.phase === 'fighting' && !hud.paused && nextIsBoss(hud.wave, config) && <p className="dungeon-tip">다음은 보스 — 필살기를 아껴 두면 첫 큰 공격을 끊을 수 있어요</p>}
     </header>
   );
+  const layer = typeof document !== 'undefined' ? document.querySelector('.app') : null;
+  return (
+    <>
+      {header}
+      {layer &&
+        createPortal(
+          <>
+            {(hud.paused === 'user' || hud.paused === 'background') && !confirm && (
+              <div className="modal-backdrop pause-backdrop">
+                <div className="modal confirm pause-panel" role="dialog" aria-label="일시정지">
+                  <h2>일시정지</h2>
+                  <p className="muted">
+                    {hud.level}단계 · 웨이브 {Math.max(1, hud.wave)}/{hud.waves}
+                    {hud.paused === 'background' ? ' — 멈춰 둔 곳에서 이어집니다' : ''}
+                  </p>
+                  <div className="modal-actions">
+                    <button className="btn-ad" onClick={askGiveUp}>
+                      포기
+                    </button>
+                    <button className="btn-ok" onClick={() => session.continueDungeon()}>
+                      계속하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {confirm && (
+              <div className="modal-backdrop" onClick={cancelGiveUp}>
+                <div className="modal confirm" onClick={(e) => e.stopPropagation()}>
+                  <h2>던전을 포기할까요?</h2>
+                  <p className="muted">지금까지 깬 웨이브와 처치 보상은 받아요.</p>
+                  <div className="modal-actions">
+                    <button
+                      className="btn-ad"
+                      onClick={() => {
+                        setConfirm(false);
+                        pausedForConfirm.current = false;
+                        session.abandonDungeon();
+                      }}
+                    >
+                      포기하기
+                    </button>
+                    <button className="btn-ok" onClick={cancelGiveUp}>
+                      계속하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>,
+          layer,
+        )}
+    </>
+  );
+}
+
+/** HUD 에 이름으로 보여 줄 시너지 수 */
+const MAX_CHIPS = 3;
+
+/** 지금 웨이브 다음이 보스 웨이브인가 */
+function nextIsBoss(wave: number, cfg: GameConfig): boolean {
+  return String(wave + 1) in cfg.dungeon.waves.bosses;
 }
 
 interface BossView {
@@ -109,7 +175,12 @@ function BossBar() {
       setView({
         name: config.dungeon.bosses[b.id]?.name ?? '',
         hp: Math.max(0, m.hp / m.stats.maxHp),
-        casting: c ? { pattern: c.pattern.kind, progress: Math.min(1, (d.now - c.startedAt) / Math.max(1, c.impactAt - c.startedAt)) } : null,
+        casting: c
+          ? {
+              pattern: c.pattern.kind,
+              progress: Math.min(1, (d.now - c.startedAt) / Math.max(1, c.impactAt - c.startedAt)),
+            }
+          : null,
         guard: b.guardUntil > d.now,
         stagger: b.staggerUntil > d.now,
         enraged: b.enraged,

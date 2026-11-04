@@ -123,10 +123,12 @@ export class BattleScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.WAKE, this.onWake, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
     this.events.once(Phaser.Scenes.Events.DESTROY, this.cleanup, this);
+    // 불러오는 사이 던전에 들어갔으면 (저장된 판 이어하기) — 재우라는 요청은 불러오기가 끝나며 덮였다
+    if (this.session.dungeonView()) this.scene.sleep();
   }
 
+  /** 세션은 createGame 이 게임 루프에서 한 번 진행한다 — 장면은 그리기만 */
   update(time: number, delta: number): void {
-    this.session.tick(delta);
     this.drawUnits(time, delta);
   }
 

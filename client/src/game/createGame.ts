@@ -19,6 +19,11 @@ export function createGame(parent: HTMLElement, session: GameSession, onShown?: 
     // 던전 장면은 처음 던전에 들어갈 때 시작한다
     scene: [new BattleScene(session, dpr), new DungeonScene(session, dpr)],
   });
+  // 세션은 프레임마다 여기서 한 번만 진행한다 — 장면이 둘 다 깨어 있어도(불러오는 중 전환) 두 번 진행하지 않게
+  const tick = (_time: number, delta: number) => session.tick(delta);
+  game.events.on(Phaser.Core.Events.PRE_STEP, tick);
+  // 게임을 만들기 전에 던전에 들어갔으면 (저장된 판 이어하기) 던전 장면부터. 사냥터 장면은 다 불러온 뒤 스스로 잔다
+  if (session.dungeonView()) game.scene.run('dungeon');
   const observer = new ResizeObserver(() => {
     const next = size();
     if (next.w !== game.scale.width || next.h !== game.scale.height) game.scale.resize(next.w, next.h);
@@ -37,13 +42,14 @@ export function createGame(parent: HTMLElement, session: GameSession, onShown?: 
     }
   });
   game.events.once(Phaser.Core.Events.DESTROY, () => {
+    game.events.off(Phaser.Core.Events.PRE_STEP, tick);
     observer.disconnect();
     offEvents();
   });
   if (onShown) {
     // 전투 장면이 만들어진(running) 뒤 첫 프레임을 그리고 나면
     const check = () => {
-      if (!game.scene.isActive('battle')) return;
+      if (!game.scene.isActive('battle') && !game.scene.isActive('dungeon')) return;
       game.events.off(Phaser.Core.Events.POST_RENDER, check);
       onShown();
     };

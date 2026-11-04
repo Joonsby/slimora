@@ -74,6 +74,10 @@ function describe(e: SessionEvent, cfg: GameConfig, state: GameStoreState): Omit
       return { text: `도전 던전 ${e.level}단계 입장`, tone: 'normal' };
     case 'dungeonEnded':
       return { text: `도전 던전 ${e.level}단계 — ${e.cleared ? '클리어!' : `웨이브 ${e.waves}까지`}`, tone: e.cleared ? 'good' : 'normal' };
+    case 'dungeonRestored':
+      return { text: `진행 중이던 도전 던전 ${e.level}단계 (웨이브 ${e.wave})를 찾았습니다`, tone: 'normal' };
+    case 'dungeonRunLost':
+      return { text: '진행 중이던 던전 기록이 손상돼 이어할 수 없었습니다', tone: 'bad' };
     case 'offlineReward':
       return { text: e.bonus ? `광고 보너스 +${e.gold} G` : `자리 비운 동안 +${e.gold} G`, tone: 'gold' };
     default:

@@ -44,20 +44,23 @@ export function dungeonPower(p: ProgressState, level: number, cfg: GameConfig): 
   const dps = (hit * 1000) / s.attackIntervalMs + allies + burn;
   const ehp = (s.maxHp * (1 + researchBonus(p.dungeon, cfg).hp) * (1 + s.lifesteal)) / (1 - s.damageReduction);
   const base = stageBase(cfg, dungeonRefStage(level, cfg));
-  return (dps * ehp) / (base.hp * base.atk * cfg.dungeon.levels.powerBase);
+  const form = p.slime.form ? (cfg.dungeon.forms[p.slime.form]?.power ?? 1) : 1;
+  return (dps * ehp * form) / (base.hp * base.atk * cfg.dungeon.levels.powerBase);
 }
 
 export type DungeonDifficulty = 'easy' | 'fair' | 'hard' | 'brutal';
 
-export function difficultyOf(power: number): DungeonDifficulty {
-  return power >= 1.3 ? 'easy' : power >= 0.9 ? 'fair' : power >= 0.6 ? 'hard' : 'brutal';
+/** 세기 → 난이도 표시. 경계는 시뮬레이션의 실제 클리어율로 맞춘다 (DUNGEON.md) */
+export function difficultyOf(power: number, cfg: GameConfig): DungeonDifficulty {
+  const t = cfg.dungeon.levels.difficulty;
+  return power >= t.easy ? 'easy' : power >= t.fair ? 'fair' : power >= t.hard ? 'hard' : 'brutal';
 }
 
-/** 지금 힘에 맞는 단계 — 열린 단계 중 적정 이상인 가장 높은 단계 (없으면 1) */
+/** 지금 힘에 맞는 단계 — 열린 단계 중 세기가 levels.recommend 이상인 가장 높은 단계 (없으면 1). 넉넉하게 잡는다 */
 export function recommendedLevel(p: ProgressState, cfg: GameConfig): number {
   const top = highestUnlockedLevel(p, cfg);
   let level = 1;
-  while (level < top && dungeonPower(p, level + 1, cfg) >= 0.9) level++;
+  while (level < top && dungeonPower(p, level + 1, cfg) >= cfg.dungeon.levels.recommend) level++;
   return level;
 }
 
@@ -86,18 +89,27 @@ export function purchaseResearch(p: ProgressState, id: string, cfg: GameConfig):
   return ok({ ...p, dungeon: { ...p.dungeon, crystals: p.dungeon.crystals - cost, research: { ...p.dungeon.research, [id]: level + 1 } } });
 }
 
-/** 지금 진행으로 던전에 들어갈 때의 전투 준비 — 슬라임 능력치 · 형태 · 용병 · 연구 */
-export function dungeonInit(p: ProgressState, level: number, seed: number, cfg: GameConfig): DungeonInit {
+/** 아직 한 번도 깨지 못했으면 1 단계에 도움이 붙는다 (DungeonConfig.assist) */
+export function assistActive(p: Pick<ProgressState, 'dungeon'>, level: number): boolean {
+  return level === 1 && p.dungeon.cleared === 0;
+}
+
+/** 지금 진행으로 던전에 들어갈 때의 전투 준비 — 슬라임 능력치 · 형태 · 용병 · 연구. runId 는 판마다 달라야 한다 */
+export function dungeonInit(p: ProgressState, level: number, seed: number, cfg: GameConfig, runId = `run-${seed >>> 0}`): DungeonInit {
   const bonus = slimeBonus(p, cfg);
   const research = researchBonus(p.dungeon, cfg);
   const stats = deriveSlimeStats(p.slime, cfg, bonus);
   return {
+    runId,
     level,
+    rewardStage: Math.min(dungeonRefStage(level, cfg), p.stage.highestCleared + 1),
+    assist: assistActive(p, level),
     slime: { ...stats, maxHp: Math.round(stats.maxHp * (1 + research.hp)) },
     form: p.slime.form,
     allies: partyAllies(p.mercenaries, cfg).map((a) => ({ ...a, preset: findMercenary(cfg, a.id)?.look.preset ?? '' })),
     seed,
-    goldMul: bonus.gold,
+    // 처치 골드는 판을 열 때 정한다 — 너무 쉬운 단계면 줄어든다
+    goldMul: bonus.gold * easyRate(p, level, cfg).gold,
     rerolls: cfg.dungeon.picks.rerolls + research.reroll,
     offerSize: cfg.dungeon.picks.size + research.choice,
     chargeMul: 1 + research.charge,
@@ -106,6 +118,8 @@ export function dungeonInit(p: ProgressState, level: number, seed: number, cfg: 
 
 export interface DungeonGains {
   crystals: number;
+  /** 실제로 받는 흡수 (처치 흡수 × absorbMul × 쉬운 단계 배율) */
+  absorb: Partial<Record<string, number>>;
   /** 단계 첫 클리어 보석 */
   firstClearGems: number;
   /** 처음 발견한 시너지 */
@@ -115,22 +129,54 @@ export interface DungeonGains {
   newBest: boolean;
 }
 
+/** 단계를 처음 깨면 받는 보석 */
+export function firstClearGems(level: number, cfg: GameConfig): number {
+  const g = cfg.dungeon.rewards.firstClearGems;
+  return Math.round(g.base + g.perLevel * (level - 1));
+}
+
+/** 지금 힘에 비해 너무 쉬운 단계면 결정 · 골드가 줄어든다 — 쉬운 단계를 빨리 돌려 모으는 것보다 맞는 단계가 낫게 */
+export function easyRate(p: ProgressState, level: number, cfg: GameConfig): { crystals: number; gold: number } {
+  const power = dungeonPower(p, level, cfg);
+  const rate = { crystals: 1, gold: 1 };
+  for (const step of cfg.dungeon.rewards.easy) {
+    if (power < step.power) continue;
+    rate.crystals = Math.min(rate.crystals, step.crystals);
+    rate.gold = Math.min(rate.gold, step.gold);
+  }
+  return rate;
+}
+
+/** 결정 배율 (easyRate) */
+export function crystalRate(p: ProgressState, level: number, cfg: GameConfig): number {
+  return easyRate(p, level, cfg).crystals;
+}
+
 /** 결과로 받을 것 (골드 · 흡수는 summary.rewards 그대로) */
-export function dungeonGains(p: Pick<ProgressState, 'dungeon'>, s: DungeonSummary, cfg: GameConfig): DungeonGains {
+export function dungeonGains(p: ProgressState, s: DungeonSummary, cfg: GameConfig): DungeonGains {
   const r = cfg.dungeon.rewards;
   const firstClear = s.cleared && s.level > p.dungeon.cleared;
   const newSynergies = [...new Set(s.synergies)].filter((id) => !p.dungeon.synergies.includes(id));
+  const crystals = r.crystalsPerWave * s.waves + r.crystalsPerBoss * s.bossKills + (s.cleared ? r.crystalsClear : 0);
+  const rate = easyRate(p, s.level, cfg);
+  const absorb = Object.fromEntries(Object.entries(s.rewards.absorb).map(([family, n]) => [family, Math.floor((n ?? 0) * r.absorbMul * rate.gold)]).filter(([, n]) => (n as number) > 0));
   return {
-    crystals: r.crystalsPerWave * s.waves + r.crystalsPerBoss * s.bossKills + (s.cleared ? r.crystalsClear : 0),
-    firstClearGems: firstClear ? r.firstClearGems.base + r.firstClearGems.perLevel * (s.level - 1) : 0,
+    crystals: Math.round(crystals * rate.crystals),
+    absorb,
+    firstClearGems: firstClear ? firstClearGems(s.level, cfg) : 0,
     newSynergies,
     synergyGems: r.synergyGems * newSynergies.length,
     newBest: s.waves > (p.dungeon.best[s.level] ?? 0),
   };
 }
 
-/** 던전 한 판을 마친 결과를 진행에 반영한다 — 골드 · 처치 · 흡수 · 결정 · 보석 · 기록 */
+/** 결과를 반영한 판 id 를 이만큼 기억한다 */
+const CLAIM_MEMORY = 20;
+
+/** 던전 한 판을 마친 결과를 진행에 반영한다 — 골드 · 처치 · 흡수 · 결정 · 보석 · 기록. 같은 판(runId)은 한 번만 */
 export function finishDungeon(p: ProgressState, s: DungeonSummary, cfg: GameConfig): Result<ProgressState, RuleError> {
+  if (typeof s.runId !== 'string' || s.runId.length === 0 || s.runId.length > 64) return err({ code: 'INVALID_REWARD' });
+  if (p.dungeon.claimed.includes(s.runId)) return err({ code: 'ALREADY_CLAIMED' });
   const valid =
     isLevelUnlocked(p, s.level, cfg) &&
     Number.isInteger(s.waves) &&
@@ -149,13 +195,13 @@ export function finishDungeon(p: ProgressState, s: DungeonSummary, cfg: GameConf
   const kills = { ...p.lifetime.kills };
   for (const [family, n] of Object.entries(s.rewards.kills)) kills[family] = (kills[family] ?? 0) + (n ?? 0);
   const absorption = { ...p.slime.absorption };
-  for (const [family, n] of Object.entries(s.rewards.absorb)) absorption[family] = (absorption[family] ?? 0) + (n ?? 0);
+  for (const [family, n] of Object.entries(g.absorb)) absorption[family] = (absorption[family] ?? 0) + (n ?? 0);
   const d = p.dungeon;
   return ok({
     ...p,
     gold: p.gold + s.rewards.gold,
     gems: p.gems + g.firstClearGems + g.synergyGems,
-    slime: Object.keys(s.rewards.absorb).length > 0 ? { ...p.slime, absorption } : p.slime,
+    slime: Object.keys(g.absorb).length > 0 ? { ...p.slime, absorption } : p.slime,
     lifetime: { ...p.lifetime, kills, goldEarned: p.lifetime.goldEarned + s.rewards.gold },
     dungeon: {
       ...d,
@@ -164,6 +210,7 @@ export function finishDungeon(p: ProgressState, s: DungeonSummary, cfg: GameConf
       crystals: d.crystals + g.crystals,
       synergies: g.newSynergies.length > 0 ? [...d.synergies, ...g.newSynergies] : d.synergies,
       runs: d.runs + 1,
+      claimed: [...d.claimed, s.runId].slice(-CLAIM_MEMORY),
     },
   });
 }

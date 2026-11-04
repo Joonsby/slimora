@@ -1,5 +1,5 @@
 import { SKILL_IDS, SYNERGY_IDS, type DamageSource } from '../core/model/dungeon';
-import { SKILL_ICON, SOURCE_COLOR, SOURCE_NAME } from './dungeonText';
+import { ADVICE_TEXT, HURT_NAME, SKILL_ICON, SOURCE_COLOR, SOURCE_NAME } from './dungeonText';
 import { formatNumber } from './format';
 import { useGame, useGameContext } from './GameContext';
 import { IconCoin, IconCrystal, IconGem } from './icons';
@@ -13,7 +13,7 @@ export function DungeonResultModal() {
   const result = useGame((s) => s.dungeonResult);
   const found = useGame((s) => s.progress.dungeon.synergies.length);
   if (!result) return null;
-  const { summary, gains, record } = result;
+  const { summary, gains, record, advice } = result;
   const d = config.dungeon;
   const waves = d.waves.monsters.length;
   const damage = (Object.entries(record.damage) as [DamageSource, number][]).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -36,6 +36,19 @@ export function DungeonResultModal() {
           <span>필살기 {record.ultimates}회</span>
           {record.blocked > 0 && <span>차단 {record.blocked}회</span>}
         </div>
+        {advice.cause && (
+          <section className="defeat" aria-label="쓰러진 이유">
+            <p className="defeat-cause">
+              웨이브 <b>{advice.cause.wave}</b>
+              {advice.cause.boss ? ` 「${d.bosses[advice.cause.boss]?.name ?? ''}」` : ''}에서 <b>{advice.cause.by ? HURT_NAME[advice.cause.by] : '공격'}</b>에 쓰러졌어요
+            </p>
+            {advice.tips.length > 0 && (
+              <ul className="defeat-tips">
+                {advice.tips.map((id) => (
+                  <li key={id}>{ADVICE_TEXT[id]}</li>
+                ))}
+              </ul>
+            )}
         {owned.length > 0 && (
           <div className="result-skills">
             {owned.map((id) => {
@@ -74,7 +87,7 @@ export function DungeonResultModal() {
               <IconGem size={20} />+{gems}
             </span>
           )}
-          {Object.entries(summary.rewards.absorb).map(([family, amount]) => {
+          {Object.entries(gains.absorb).map(([family, amount]) => {
             const fam = config.families.find((f) => f.id === family);
             return (
               <span key={family} className="reward absorb" style={{ ['--family' as string]: fam?.color }}>
@@ -84,8 +97,11 @@ export function DungeonResultModal() {
             );
           })}
         </div>
+        {!result.claimed && <p className="hint warn">이 판의 보상은 이미 받았어요 (다른 기기나 이전 실행에서).</p>}
         {gains.newSynergies.length > 0 && <p className="bonus-done">새 시너지 발견 — {gains.newSynergies.map((id) => d.synergies[id as keyof typeof d.synergies]?.name).join(' · ')}</p>}
-        {!summary.cleared && found < SYNERGY_IDS.length && <p className="hint">아직 발견하지 못한 시너지가 {SYNERGY_IDS.length - found}개 있어요. 다른 조합으로 다시 도전해 보세요!</p>}
+          </section>
+        )}
+        {!summary.cleared && advice.tips.length === 0 && found < SYNERGY_IDS.length && <p className="hint">아직 발견하지 못한 시너지가 {SYNERGY_IDS.length - found}개 있어요. 다른 조합으로 다시 도전해 보세요!</p>}
         <div className="modal-actions">
           <button
             className="btn-ad"

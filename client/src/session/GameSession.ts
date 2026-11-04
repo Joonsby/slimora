@@ -1,7 +1,10 @@
 import { applySlimeStats, continueAsFarm, createBattle, isBossFight, isFinished, setAllies, setGoldMultiplier, stepBattle, ultimateReady, useUltimate } from '../core/battle/engine';
+import { dungeonAdvice } from '../core/dungeon/advice';
+import { snapshotDungeon } from '../core/dungeon/checkpoint';
 import {
   chooseDungeonSkill,
   createDungeon,
+  dungeonUltReady,
   isDungeonOver,
   rerollDungeonOffer,
   setDungeonFocus,
@@ -14,7 +17,7 @@ import { lastStageId } from '../core/lookup';
 import { computeOfflineReward, type OfflineReward } from '../core/idle/offline';
 import type { BattleEvent, BattleMode, BattleState } from '../core/model/battle';
 import type { DungeonEvent, DungeonState, SkillId } from '../core/model/dungeon';
-import { dungeonGains, dungeonInit, isLevelUnlocked } from '../core/progression/dungeon';
+import { dungeonGains, dungeonInit, dungeonPower, isLevelUnlocked, type DungeonGains } from '../core/progression/dungeon';
 import type { GameCommand, RuleError } from '../core/model/commands';
 import type { GameConfig } from '../core/model/config';
 import type { FormId, LegacyId, MercenaryId, StageId, UpgradeId } from '../core/model/ids';
@@ -29,9 +32,9 @@ import { carryPurchases } from '../core/progression/shop';
 import type { Result } from '../core/result';
 import { seedFrom } from '../core/rng';
 import { deriveSlimeStats, sameCombatStats } from '../core/stats';
-import type { GameStore } from '../store/gameStore';
+import type { DungeonPause, DungeonResumeInfo, GameStore, Toast } from '../store/gameStore';
 import type { PlatformAdapter, SaveEnvelope, SaveRepository } from './ports';
-import { newSaveData, restoreSaveData, toEnvelope, type SaveData } from './saveData';
+import { dungeonRunLost, newSaveData, restoreSaveData, toEnvelope, type SaveData } from './saveData';
 import type { BattleSpeed, GameSettings } from './settings';
 
 export type SessionEvent =
@@ -52,7 +55,11 @@ export type SessionEvent =
   /** 던전이 끝나 결과를 반영했다 (결과 화면이 뜬다) */
   | { type: 'dungeonEnded'; at: number; level: number; cleared: boolean; waves: number }
   /** 결과 화면을 닫고 사냥터로 돌아왔다 */
-  | { type: 'dungeonClosed'; at: number };
+  | { type: 'dungeonClosed'; at: number }
+  /** 다시 실행했더니 진행 중이던 던전이 저장돼 있었다 (이어할지 묻는다) */
+  | { type: 'dungeonRestored'; at: number; level: number; wave: number }
+  /** 진행 중이던 던전 기록이 손상돼 버렸다 */
+  | { type: 'dungeonRunLost'; at: number };
 export type SessionListener = (events: readonly SessionEvent[]) => void;
 export type DungeonListener = (events: readonly DungeonEvent[]) => void;
 export type StartStatus = 'new' | 'restored' | 'recovered' | 'reset';
@@ -66,7 +73,11 @@ export interface SessionDeps {
 }
 
 /** 던전 화면 요약(웨이브 · 선택 · 스킬)을 다시 계산할 이벤트 */
-const HUD_EVENTS = new Set<DungeonEvent['type']>(['dOffer', 'dSkill', 'dSynergy', 'dWave', 'dWaveClear', 'dSpawn', 'dCleared', 'dFailed', 'dBossCast', 'dBossImpact', 'dUltReady', 'dUltimate']);
+const HUD_EVENTS = new Set<DungeonEvent['type']>(['dOffer', 'dSkill', 'dSynergy', 'dWave', 'dWaveClear', 'dSpawn', 'dCleared', 'dFailed', 'dBossCast', 'dBossImpact', 'dGuard', 'dUltReady', 'dUltimate']);
+/** 전투가 안정된 경계 — 고를 차례(다시 뽑기 포함) · 웨이브 시작(전장이 빔) · 웨이브 돌파. 여기서 체크포인트를 저장한다 */
+const CHECKPOINT_EVENTS = new Set<DungeonEvent['type']>(['dOffer', 'dWave', 'dWaveClear']);
+const NO_GAINS: DungeonGains = { crystals: 0, absorb: {}, firstClearGems: 0, newSynergies: [], synergyGems: 0, newBest: false };
+const TOAST_MS = 2800;
 
 /** 프레임 하나에서 진행할 최대 시간. 더 긴 공백은 따라잡지 않는다 */
 export const MAX_FRAME_MS = 250;
@@ -92,7 +103,18 @@ export class GameSession {
   private offlineCount = 0;
   /** 도전 던전 한 판. 결과 화면을 닫을 때까지 남는다 (그동안 사냥터 전투는 멈춘다) */
   private dungeon: DungeonState | null = null;
+  /**
+   * 저장할 판의 사본 — 웨이브 경계 · 스킬 선택 때, 그리고 화면을 떠날 때 뜬다. 진행 상태와 같은 저장에 들어가
+   * 보상과 어긋나지 않는다. 판이 끝나면(보상 반영) null
+   */
+  private checkpoint: DungeonState | null = null;
+  /** 다시 실행했을 때 저장에서 되살린 판 — 이어할지 고르기 전까지 (그동안 사냥터도 멈춘다) */
+  private pendingRun: DungeonState | null = null;
+  /** 던전이 멈춘 이유. 엔진은 모른다 — 시간이 흐르지 않을 뿐이다 */
+  private dungeonPause: DungeonPause | null = null;
   private dungeonCount = 0;
+  private toastSeq = 0;
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly dungeonListeners = new Set<DungeonListener>();
   /** 사냥터 필살기가 다 찼던가 — 처음 찬 순간만 알린다 */
   private ultimateWasReady = false;
@@ -124,9 +146,13 @@ export class GameSession {
     store.setState({ ready: true, progress: data.progress, settings: data.settings });
     this.lastSavedAt = now;
     this.startBattle();
+    // 진행 중이던 던전 — 이어할지 묻는다. 읽지 못했으면 알리고 버린다 (진행 상태는 그대로)
+    if (data.dungeonRun) this.setPendingRun(data.dungeonRun);
+    else if (loaded.status === 'ok' && dungeonRunLost(loaded.envelope, data)) this.emit([{ type: 'dungeonRunLost', at: 0 }]);
     this.unsubscribeVisibility = platform.onVisibilityChange((visible) => {
       if (!visible) {
         this.hiddenAt ??= platform.now();
+        this.suspendDungeon();
         void this.saveNow();
         return;
       }
@@ -146,14 +172,15 @@ export class GameSession {
     this.listeners.clear();
     this.saveListeners.clear();
     this.dungeonListeners.clear();
+    if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
-  /** Phaser update 에서 매 프레임 호출. 던전 중이면 던전만 진행한다 */
+  /** 매 프레임 호출 (게임 루프 한 곳에서). 던전 중이면 던전만 진행하고, 저장된 던전을 이어할지 고르는 동안은 아무것도 진행하지 않는다 */
   tick(frameMs: number): void {
     const dt = Math.min(Math.max(frameMs, 0), MAX_FRAME_MS) * this.deps.store.getState().settings.battleSpeed;
     if (this.dungeon) {
-      this.tickDungeon(dt);
-    } else {
+      if (!this.dungeonPause) this.tickDungeon(dt);
+    } else if (!this.pendingRun) {
       const battle = this.battle;
       if (!battle || this.deps.platform.now() < this.pausedUntil) return;
       const battleEvents = stepBattle(battle, dt, this.deps.config);
@@ -168,19 +195,39 @@ export class GameSession {
     if (this.dirty && this.deps.platform.now() - this.lastSavedAt >= SAVE_INTERVAL_MS) void this.saveNow();
   }
 
-  /** 필살기 — 던전이면 던전, 아니면 사냥터 전투. 게이지가 덜 찼으면 false */
+  /** 필살기 — 던전이면 던전, 아니면 사냥터 전투. 게이지가 덜 찼거나 멈춘 중이면 false (첫 내려찍기 가르침 중에는 쓸 수 있다) */
   useUltimate(): boolean {
     const { config } = this.deps;
     if (this.dungeon) {
+      if (this.dungeonPause && this.dungeonPause !== 'teach') return false;
       const events = useDungeonUltimate(this.dungeon, config);
       if (!events) return false;
+      const used = events.find((e) => e.type === 'dUltimate');
+      if (this.dungeonPause === 'teach') this.dungeonPause = null;
+      // 처음 쓴 필살기 · 처음 끊은 큰 공격은 확실하게 알려 준다
+      if (used?.blocked && !this.tutorialDone('block')) {
+        this.completeTutorial('block');
+        this.toast('차단 성공! 붉게 예고하는 큰 공격은 이렇게 끊을 수 있어요', 'good');
+      } else if (!this.tutorialDone('dungeonUlt')) {
+        this.completeTutorial('dungeonUlt');
+        this.toast(used?.weakened ? '숨결 약화! 예고 중에 쓰면 큰 공격이 약해져요' : '필살기! 모든 적에게 큰 피해를 줘요', 'good');
+      }
       this.afterDungeonEvents(events);
+      this.updateDungeonHud();
       return true;
     }
     const battle = this.battle;
     const battleEvents = battle ? useUltimate(battle, config) : null;
     if (!battleEvents) return false;
     this.ultimateWasReady = false;
+    // 사냥터에서도 처음 쓴 필살기 · 처음 끊은 강타는 알려 준다
+    const used = battleEvents.find((e) => e.type === 'ultimate');
+    if (used?.interrupted && !this.tutorialDone('fieldBlock')) {
+      this.completeTutorial('fieldBlock');
+      this.toast('강타 차단! 적이 힘을 모을 때 쓰면 공격을 끊어요', 'good');
+    } else if (!this.tutorialDone('ultimate')) {
+      this.toast('필살기! 게이지가 다시 차면 또 쓸 수 있어요', 'good');
+    }
     this.completeTutorial('ultimate');
     const after: SessionEvent[] = [];
     for (const e of battleEvents) this.handleBattleEvent(e, after);
@@ -194,7 +241,8 @@ export class GameSession {
     const d = this.dungeon;
     if (d) {
       const max = config.dungeon.ultimate.max;
-      return { charge: d.ult.charge, max, usable: d.ult.charge >= max && d.phase === 'fighting' && d.monsters.length > 0 };
+      const paused = this.dungeonPause !== null && this.dungeonPause !== 'teach';
+      return { charge: d.ult.charge, max, usable: d.ult.charge >= max && d.phase === 'fighting' && d.monsters.length > 0 && !paused };
     }
     const b = this.battle;
     const max = config.balance.ultimate.max;
@@ -204,19 +252,78 @@ export class GameSession {
 
   // ── 도전 던전 ─────────────────────────────────────────
 
-  /** 던전 한 판을 연다. 열리지 않은 단계거나 이미 던전 중이면 false */
+  /** 던전 한 판을 연다. 열리지 않은 단계거나 이미 던전 중이거나 이어할 판이 남아 있으면 false */
   startDungeon(level: number): boolean {
-    const { config, store, platform } = this.deps;
-    if (this.dungeon || !isLevelUnlocked(this.progress(), level, config)) return false;
+    const { config } = this.deps;
+    if (this.dungeon || this.pendingRun || !isLevelUnlocked(this.progress(), level, config)) return false;
     const seed = seedFrom(this.seed, 0xd0, ++this.dungeonCount);
-    const { state, events } = createDungeon(dungeonInit(this.progress(), level, seed, config), config);
+    const { state, events } = createDungeon(dungeonInit(this.progress(), level, seed, config, newRunId()), config);
+    this.enterDungeon(state, events);
+    return true;
+  }
+
+  /** 저장에서 되살린 판을 이어 한다. 싸우는 중이었으면 멈춘 채로 열어 준비할 틈을 준다 */
+  resumeSavedDungeon(): boolean {
+    const run = this.pendingRun;
+    if (!run || this.dungeon) return false;
+    this.pendingRun = null;
+    this.deps.store.setState({ dungeonResume: null });
+    this.enterDungeon(snapshotDungeon(run), []);
+    if (run.phase !== 'choosing') this.dungeonPause = 'background';
+    this.updateDungeonHud();
+    return true;
+  }
+
+  /** 저장에서 되살린 판을 포기한다 — 그때까지 깬 웨이브와 처치 보상은 받는다 (결과 화면이 뜬다) */
+  abandonSavedDungeon(): void {
+    if (this.resumeSavedDungeon()) this.abandonDungeon();
+  }
+
+  /** 던전을 잠깐 멈춘다 (멈춤 버튼). 고르는 중이거나 끝났으면 false */
+  pauseDungeon(): boolean {
+    const d = this.dungeon;
+    if (!d || isDungeonOver(d) || d.phase === 'choosing' || this.dungeonPause) return false;
+    this.dungeonPause = 'user';
+    this.updateDungeonHud();
+    return true;
+  }
+
+  /** 멈춘 던전을 다시 진행한다. 첫 내려찍기 가르침을 넘기면 다시 가르치지 않는다 */
+  continueDungeon(): void {
+    if (!this.dungeonPause) return;
+    if (this.dungeonPause === 'teach') this.completeTutorial('block');
+    this.dungeonPause = null;
+    this.updateDungeonHud();
+  }
+
+  private enterDungeon(state: DungeonState, events: readonly DungeonEvent[]): void {
+    const { store } = this.deps;
     this.dungeon = state;
+    this.checkpoint = snapshotDungeon(state);
+    this.dungeonPause = null;
     store.setState({ sheet: 'none', dungeonResult: null });
     this.updateDungeonHud();
-    this.emit([{ type: 'dungeonStarted', at: 0, level }]);
+    this.emit([{ type: 'dungeonStarted', at: 0, level: state.level }]);
     this.emitDungeon(events);
-    this.lastSavedAt = platform.now();
-    return true;
+    void this.saveNow();
+  }
+
+  /** 다시 실행했을 때 찾은 판 — 이어할지 묻는다 */
+  private setPendingRun(run: DungeonState): void {
+    this.pendingRun = run;
+    this.deps.store.setState({ dungeonResume: resumeInfo(run, this.deps.config) });
+    this.emit([{ type: 'dungeonRestored', at: 0, level: run.level, wave: Math.max(1, run.wave) }]);
+  }
+
+  /** 화면을 떠난다 — 지금 그대로를 체크포인트로 남기고(강제 종료 대비), 돌아오면 멈춘 채로 보여 준다 */
+  private suspendDungeon(): void {
+    const d = this.dungeon;
+    if (!d || isDungeonOver(d)) return;
+    this.checkpoint = snapshotDungeon(d);
+    if (!this.dungeonPause && d.phase !== 'choosing') {
+      this.dungeonPause = 'background';
+      this.updateDungeonHud();
+    }
   }
 
   chooseSkill(skill: SkillId): boolean {
@@ -233,9 +340,9 @@ export class GameSession {
     return true;
   }
 
-  /** 공격 대상을 고른다. null 이면 맨 앞 적 */
+  /** 공격 대상을 고른다. null 이면 맨 앞 적. 멈춘 동안은 고를 수 없다 */
   focusMonster(seq: number | null): boolean {
-    return this.dungeon !== null && !isDungeonOver(this.dungeon) && setDungeonFocus(this.dungeon, seq);
+    return this.dungeon !== null && !isDungeonOver(this.dungeon) && !this.dungeonPause && setDungeonFocus(this.dungeon, seq);
   }
 
   /** 포기 — 그때까지 깬 웨이브와 처치 보상은 받는다 */
@@ -251,6 +358,8 @@ export class GameSession {
     const d = this.dungeon;
     if (!d || !isDungeonOver(d)) return;
     this.dungeon = null;
+    this.checkpoint = null;
+    this.dungeonPause = null;
     this.deps.store.setState({ dungeon: null, dungeonResult: null });
     this.emit([{ type: 'dungeonClosed', at: 0 }]);
     if (again) this.startDungeon(d.level);
@@ -269,26 +378,64 @@ export class GameSession {
   private tickDungeon(dt: number): void {
     const d = this.dungeon!;
     if (isDungeonOver(d)) return;
-    const events = stepDungeon(d, dt, this.deps.config);
+    let events: DungeonEvent[];
+    try {
+      events = stepDungeon(d, dt, this.deps.config);
+    } catch (e) {
+      // 엔진이 멈추면 게임 전체가 멈춘다 — 그때까지의 보상으로 판을 끝낸다
+      console.error('던전을 더 진행할 수 없어 판을 끝낸다', e);
+      d.phase = 'failed';
+      this.finishDungeon(true);
+      return;
+    }
     if (events.length > 0) this.afterDungeonEvents(events);
   }
 
   private afterDungeonEvents(events: readonly DungeonEvent[]): void {
     this.emitDungeon(events);
     if (events.some((e) => HUD_EVENTS.has(e.type))) this.updateDungeonHud();
-    if (this.dungeon && isDungeonOver(this.dungeon) && !this.deps.store.getState().dungeonResult) this.finishDungeon(false);
+    const d = this.dungeon;
+    if (!d) return;
+    if (isDungeonOver(d)) {
+      if (!this.deps.store.getState().dungeonResult) this.finishDungeon(false);
+      return;
+    }
+    this.teachBlock(events);
+    if (events.some((e) => CHECKPOINT_EVENTS.has(e.type))) {
+      this.checkpoint = snapshotDungeon(d);
+      void this.saveNow();
+    }
   }
 
-  /** 결과를 진행에 반영하고 결과 화면을 띄운다 */
+  /**
+   * 처음 보는 내려찍기 — 필살기가 차 있으면 멈추고 버튼을 짚어 준다 (그때 쓰면 끊긴다).
+   * 차 있지 않으면 다음에 끊을 수 있다고만 알린다
+   */
+  private teachBlock(events: readonly DungeonEvent[]): void {
+    if (this.dungeonPause || this.tutorialDone('block')) return;
+    if (!events.some((e) => e.type === 'dBossCast' && e.pattern === 'smash')) return;
+    if (dungeonUltReady(this.dungeon!, this.deps.config)) {
+      this.dungeonPause = 'teach';
+      this.updateDungeonHud();
+    } else {
+      this.toast('필살기가 다 차 있으면 이 내려찍기를 끊을 수 있어요', 'hint');
+    }
+  }
+
+  /** 결과를 진행에 반영하고 결과 화면을 띄운다. 이미 반영한 판(다른 기기 · 이전 실행)이면 보상 없이 결과만 */
   private finishDungeon(abandoned: boolean): void {
     const d = this.dungeon!;
     const { config, store } = this.deps;
     const summary = summarizeDungeon(d);
-    const gains = dungeonGains(this.progress(), summary, config);
-    const gemsBefore = this.progress().gems;
+    const before = this.progress();
+    const gemsBefore = before.gems;
     const applied = this.apply({ type: 'finishDungeon', summary });
     if (!applied.ok) console.warn('던전 결과를 반영하지 못했다', applied.error);
-    store.setState({ dungeonResult: { summary, gains, record: d.record, skills: d.skills, kills: d.kills, durationMs: d.now, abandoned } });
+    const gains = applied.ok ? dungeonGains(before, summary, config) : NO_GAINS;
+    const advice = dungeonAdvice(summary, d.record, d.skills, d.synergies.length, dungeonPower(before, d.level, config), abandoned, config);
+    this.checkpoint = null;
+    this.dungeonPause = null;
+    store.setState({ dungeonResult: { summary, gains, record: d.record, skills: d.skills, kills: d.kills, durationMs: d.now, abandoned, advice, claimed: applied.ok } });
     this.updateDungeonHud();
     const gained = this.progress().gems - gemsBefore;
     this.emit([
@@ -319,9 +466,26 @@ export class GameSession {
         rerolls: d.rerolls,
         boss: bossState?.id ?? config.dungeon.waves.bosses[String(d.wave)] ?? null,
         casting: bossState?.casting?.pattern.kind ?? null,
+        guard: bossState ? bossState.guardUntil > d.now : false,
         ultReady: d.ult.charge >= config.dungeon.ultimate.max,
+        paused: this.dungeonPause,
       },
     });
+  }
+
+  private tutorialDone(step: string): boolean {
+    return this.deps.store.getState().settings.tutorial.includes(step);
+  }
+
+  /** 잠깐 뜨는 안내 한 줄 */
+  private toast(text: string, tone: Toast['tone']): void {
+    const { store } = this.deps;
+    const id = ++this.toastSeq;
+    store.setState({ toast: { id, text, tone } });
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => {
+      if (store.getState().toast?.id === id) store.setState({ toast: null });
+    }, TOAST_MS);
   }
 
   private emitDungeon(events: readonly DungeonEvent[]): void {
@@ -505,12 +669,13 @@ export class GameSession {
     return () => this.saveListeners.delete(listener);
   }
 
-  /** 지금 진행을 저장 형식으로 */
+  /** 지금 진행을 저장 형식으로. 진행 중인 던전은 마지막 체크포인트를, 끝난 판은 넣지 않는다 (보상은 이미 진행에 들어 있다) */
   snapshot(): SaveEnvelope {
     const { platform, store, config } = this.deps;
     const now = platform.now();
     const { progress, settings } = store.getState();
-    return toEnvelope({ ...this.meta, lastActiveAt: now, progress, settings }, config, now);
+    const dungeonRun = this.pendingRun ?? (this.dungeon && !isDungeonOver(this.dungeon) ? this.checkpoint : null);
+    return toEnvelope({ ...this.meta, lastActiveAt: now, progress, settings, dungeonRun }, config, now);
   }
 
   /**
@@ -522,10 +687,18 @@ export class GameSession {
     if (!data) return false;
     this.meta = { installId: data.installId, createdAt: data.createdAt };
     const progress = carryPurchases(data.progress, this.progress(), this.deps.config);
-    this.deps.store.setState({ progress, settings: data.settings });
+    // 이 기기의 던전 판은 버린 진행에 속한다 — 그대로 끝내면 받아 온 진행에 보상이 한 번 더 들어간다
+    const hadRun = this.dungeon !== null;
+    this.dungeon = null;
+    this.checkpoint = null;
+    this.pendingRun = null;
+    this.dungeonPause = null;
+    this.deps.store.setState({ progress, settings: data.settings, dungeon: null, dungeonResult: null, dungeonResume: null });
+    if (hadRun) this.emit([{ type: 'dungeonClosed', at: 0 }]);
     this.growth = [];
     this.pausedUntil = 0;
     this.emit([this.startBattle()]);
+    if (data.dungeonRun) this.setPendingRun(data.dungeonRun);
     void this.saveNow();
     return true;
   }
@@ -674,6 +847,15 @@ export class GameSession {
 
 function scaleReward(r: OfflineReward, k: number): { gold: number; absorb: Partial<Record<string, number>> } {
   return { gold: Math.floor(r.gold * k), absorb: Object.fromEntries(Object.entries(r.absorb).map(([f, n]) => [f, Math.floor((n ?? 0) * k)])) };
+}
+
+/** 던전 한 판의 id — 기기 · 실행이 달라도 겹치지 않게 */
+function newRunId(): string {
+  return globalThis.crypto.randomUUID();
+}
+
+function resumeInfo(run: DungeonState, cfg: GameConfig): DungeonResumeInfo {
+  return { level: run.level, wave: Math.max(1, run.wave), waves: waveCount(cfg), hp: run.slime.hp / run.slime.stats.maxHp, skills: run.skills, synergies: run.synergies };
 }
 
 /** 기기 날짜 'YYYY-MM-DD' — 하루 횟수 제한의 기준 */

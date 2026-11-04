@@ -5,6 +5,7 @@ import { BottomMenu } from './BottomMenu';
 import { DungeonButton } from './DungeonButton';
 import { DungeonBar, DungeonHud } from './DungeonHud';
 import { DungeonResultModal } from './DungeonResultModal';
+import { DungeonResumeModal } from './DungeonResumeModal';
 import { DungeonSheet } from './DungeonSheet';
 import { EvolveSheet } from './EvolveSheet';
 import { MercenarySheet } from './MercenarySheet';
@@ -16,6 +17,7 @@ import { ShopSheet } from './ShopSheet';
 import { SkillPickModal } from './SkillPickModal';
 import { slimeImage } from './portraits';
 import { StageSheet } from './StageSheet';
+import { Toast } from './Toast';
 import { Tutorial } from './Tutorial';
 import { UltimateButton } from './UltimateButton';
 import { UpgradeSheet } from './UpgradeSheet';
@@ -62,7 +64,9 @@ export function App() {
       <SkillPickModal />
       <DungeonResultModal />
       <Tutorial />
+      <Toast />
       <OfflineRewardModal />
+      <DungeonResumeModal />
     </div>
   );
 }

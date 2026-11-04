@@ -7,7 +7,7 @@ import { chooseDungeonSkill, createDungeon, isDungeonOver, rerollDungeonOffer, s
 const ofType = <T extends DungeonEvent['type']>(events: readonly DungeonEvent[], type: T) => events.filter((e): e is Extract<DungeonEvent, { type: T }> => e.type === type);
 
 function start(cfg: GameConfig = cloneConfig(), init: Partial<DungeonInit> = {}) {
-  return createDungeon({ level: 1, slime: stats({ maxHp: 1_000_000, attack: 40 }), form: null, allies: [], seed: 7, goldMul: 1, rerolls: 1, offerSize: 3, chargeMul: 1, ...init }, cfg);
+  return createDungeon({ runId: 'test', level: 1, rewardStage: 2, assist: false, slime: stats({ maxHp: 1_000_000, attack: 40 }), form: null, allies: [], seed: 7, goldMul: 1, rerolls: 1, offerSize: 3, chargeMul: 1, ...init }, cfg);
 }
 
 /** 원하는 스킬을 그 자리에 제시하고 고른다 (테스트용) */
@@ -192,8 +192,9 @@ describe('스킬이 공격 방식을 바꾼다', () => {
     expect(ticks.length).toBeGreaterThan(4);
     expect(ticks.at(-1)!.amount).toBeGreaterThan(ticks[0]!.amount);
     expect(state.monsters[0]!.poison!.stacks).toBeGreaterThan(1);
-    // 직격은 피해감소로 70% 깎이지만 독은 그대로 — 중첩 × 공격력 × 0.12 × 0.5초
-    expect(ticks.at(-1)!.amount).toBe(Math.floor((state.monsters[0]!.poison!.stacks * 30 * 0.12 * 500) / 1000));
+    // 직격은 피해감소로 70% 깎이지만 독은 그대로 — 중첩 × 공격력 × dps × 0.5초
+    const dps = cfg.dungeon.skills.poison.levels[0]!.dps;
+    expect(ticks.at(-1)!.amount).toBe(Math.floor((state.monsters[0]!.poison!.stacks * 30 * dps * 500) / 1000));
   });
 
   it('보호막 — 피해를 먼저 막는다. 3단계는 깨질 때 모든 적에게 충격파', () => {

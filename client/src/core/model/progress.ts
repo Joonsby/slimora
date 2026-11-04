@@ -30,6 +30,8 @@ export interface DungeonProgress {
   /** 한 번이라도 켜 본 시너지 */
   synergies: string[];
   runs: number;
+  /** 결과를 반영한 판의 id (최근 것만) — 같은 판의 보상을 두 번 받지 않는다 */
+  claimed: string[];
 }
 
 export interface PurchaseProgress {

@@ -6,6 +6,7 @@ import { dungeonOpen } from '../core/progression/dungeon';
 import { anyFormAvailable } from '../core/progression/forms';
 import { essenceForRebirth } from '../core/progression/prestige';
 import { getUpgradeCost } from '../core/progression/upgrades';
+import type { GameSession } from '../session/GameSession';
 import type { GameStoreState } from '../store/gameStore';
 import { useGame, useGameContext } from './GameContext';
 import { useSlimeLook } from './Hud';
@@ -21,6 +22,8 @@ interface Step {
   done?: (s: GameStoreState) => boolean;
   /** 도전 던전 안에서만 보이는 안내 */
   dungeon?: boolean;
+  /** 「알겠어요」 대신 쓸 버튼 (누르면 본 것으로 친다) */
+  button?: { label: string; press: (session: GameSession) => void };
 }
 
 /** 처음 몇 분 동안 한 번씩만 짚어 준다 */
@@ -90,17 +93,19 @@ const STEPS: Step[] = [
     done: (s) => s.sheet === 'rebirth',
   },
   {
+    // 첫 내려찍기 — 세션이 전투를 멈춰 둔다. 필살기를 누르면 끊기고 다시 진행된다
     id: 'block',
     target: '.ult-btn',
-    text: '보스가 내려찍기를 준비해요! 지금 필살기를 쓰면 끊고, 보스가 잠깐 휘청여요.',
-    when: (s) => s.dungeon?.casting === 'smash' && s.dungeon.ultReady,
-    done: (s) => s.dungeon?.casting !== 'smash',
+    text: '보스가 붉게 빛나며 내려찍기를 준비해요! 지금 필살기를 누르면 끊고, 보스가 휘청이며 더 아프게 맞아요.',
+    when: (s) => s.dungeon?.paused === 'teach',
+    done: (s) => s.dungeon?.paused !== 'teach',
     dungeon: true,
+    button: { label: '그냥 맞기', press: (session) => session.continueDungeon() },
   },
 ];
 
 function currentStep(s: GameStoreState, cfg: GameConfig): Step | null {
-  if (!s.ready || s.sheet !== 'none' || s.offline || s.dungeonResult) return null;
+  if (!s.ready || s.sheet !== 'none' || s.offline || s.dungeonResult || s.dungeonResume) return null;
   const inDungeon = s.dungeon !== null;
   return STEPS.find((step) => !!step.dungeon === inDungeon && !s.settings.tutorial.includes(step.id) && step.when(s, cfg)) ?? null;
 }
@@ -160,7 +165,7 @@ export function Tutorial() {
         {arrowLeft !== null && <span className="coach-arrow" style={{ left: arrowLeft - 12 }} />}
         <img src={slimeImage(look.color, look.preset)} alt="" />
         <p>{step.text}</p>
-        <button onClick={() => session.completeTutorial(step.id)}>알겠어요</button>
+        <button onClick={() => (step.button ? step.button.press(session) : session.completeTutorial(step.id))}>{step.button?.label ?? '알겠어요'}</button>
       </div>
     </div>
   );

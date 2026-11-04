@@ -4,7 +4,7 @@ import { dungeonRefStage } from '../dungeon/rules';
 import type { DungeonSummary } from '../model/dungeon';
 import type { ProgressState } from '../model/progress';
 import { applyCommand } from './applyCommand';
-import { difficultyOf, dungeonGains, dungeonInit, dungeonOpen, dungeonPower, highestUnlockedLevel, isLevelUnlocked, purchaseResearch, recommendedLevel, researchCost } from './dungeon';
+import { assistActive, crystalRate, difficultyOf, dungeonGains, dungeonInit, dungeonOpen, dungeonPower, easyRate, finishDungeon, firstClearGems, highestUnlockedLevel, isLevelUnlocked, purchaseResearch, recommendedLevel, researchCost } from './dungeon';
 import { createInitialProgress } from './initial';
 import { rebirth } from './prestige';
 
@@ -13,7 +13,9 @@ const at = (highestCleared: number, patch: Partial<ProgressState> = {}): Progres
   return { ...p, stage: { ...p.stage, highestCleared, current: highestCleared + 1 }, ...patch };
 };
 
+let runs = 0;
 const summary = (s: Partial<DungeonSummary> = {}): DungeonSummary => ({
+  runId: `t${++runs}`,
   level: 1,
   waves: 10,
   cleared: true,
@@ -59,11 +61,11 @@ describe('던전 열림 · 단계', () => {
     const strong = { ...weak, slime: { ...weak.slime, upgrades: { attack: 60, maxHp: 60, critChance: 0 } } };
     const level = recommendedLevel(strong, cfg);
     expect(level).toBeGreaterThan(1);
-    expect(dungeonPower(strong, level, cfg)).toBeGreaterThanOrEqual(0.9);
-    if (level < highestUnlockedLevel(strong, cfg)) expect(dungeonPower(strong, level + 1, cfg)).toBeLessThan(0.9);
+    expect(dungeonPower(strong, level, cfg)).toBeGreaterThanOrEqual(cfg.dungeon.levels.recommend);
+    if (level < highestUnlockedLevel(strong, cfg)) expect(dungeonPower(strong, level + 1, cfg)).toBeLessThan(cfg.dungeon.levels.recommend);
     // 단계가 오를수록 세기는 줄고, 구간마다 이름이 붙는다
     expect(dungeonPower(strong, 2, cfg)).toBeLessThan(dungeonPower(strong, 1, cfg));
-    expect([difficultyOf(1.5), difficultyOf(1), difficultyOf(0.7), difficultyOf(0.3)]).toEqual(['easy', 'fair', 'hard', 'brutal']);
+    expect([difficultyOf(1.5, cfg), difficultyOf(1, cfg), difficultyOf(0.8, cfg), difficultyOf(0.3, cfg)]).toEqual(['easy', 'fair', 'hard', 'brutal']);
   });
 });
 
@@ -76,7 +78,8 @@ describe('던전 결과 반영', () => {
     if (!first.ok) return;
     const v = first.value;
     expect(v.gold).toBe(500);
-    expect(v.slime.absorption).toMatchObject({ bat: 12, golem: 6 });
+    // 흡수는 absorbMul 을 곱해 반영한다 (던전이 본편 특성 성장을 앞지르지 않게)
+    expect(v.slime.absorption).toMatchObject({ bat: Math.floor(12 * r.absorbMul), golem: Math.floor(6 * r.absorbMul) });
     expect(v.lifetime.kills).toMatchObject({ bat: 10, golem: 5 });
     expect(v.dungeon).toMatchObject({ cleared: 1, best: { 1: 10 }, crystals: r.crystalsPerWave * 10 + r.crystalsPerBoss * 2 + r.crystalsClear, runs: 1 });
     expect(v.gems).toBe(p.gems + r.firstClearGems.base);
@@ -154,5 +157,74 @@ describe('던전 연구', () => {
       ['pip', 'bat'],
       ['goldy', 'slime'],
     ]);
+  });
+});
+
+describe('2차 — 보상 안전 · 초심자 도움 · 쉬운 단계', () => {
+  const strong = (stage: number) => {
+    const p = at(stage);
+    return { ...p, slime: { ...p.slime, upgrades: { attack: 80, maxHp: 80, critChance: 0 } } };
+  };
+
+  it('한 번도 깨지 못했으면 1 단계에만 도움이 붙는다', () => {
+    const p = at(cfg.dungeon.unlockStage);
+    expect(assistActive(p, 1)).toBe(true);
+    expect(dungeonInit(p, 1, 1, cfg).assist).toBe(true);
+    expect(dungeonInit({ ...p, dungeon: { ...p.dungeon, cleared: 1 } }, 1, 1, cfg).assist).toBe(false);
+    expect(assistActive(at(10), 2)).toBe(false);
+  });
+
+  it('너무 쉬운 단계는 결정 · 골드가 줄어든다 — 판을 열 때 골드 배율에 들어간다', () => {
+    const p = strong(30);
+    const easy = cfg.dungeon.rewards.easy;
+    const level = [...Array(25).keys()].map((i) => i + 1).find((l) => dungeonPower(p, l, cfg) >= easy.at(-1)!.power)!;
+    expect(easyRate(p, level, cfg)).toEqual({ crystals: easy.at(-1)!.crystals, gold: easy.at(-1)!.gold });
+    expect(crystalRate(p, level, cfg)).toBe(easy.at(-1)!.crystals);
+    const plain = dungeonInit({ ...p, dungeon: { ...p.dungeon } }, level, 1, cfg);
+    expect(plain.goldMul).toBeCloseTo(dungeonInit(p, recommendedLevel(p, cfg), 1, cfg).goldMul * easy.at(-1)!.gold);
+    const s = summary({ level });
+    const rate = crystalRate(p, level, cfg);
+    const r = cfg.dungeon.rewards;
+    expect(dungeonGains(p, s, cfg).crystals).toBe(Math.round((r.crystalsPerWave * 10 + r.crystalsPerBoss * 2 + r.crystalsClear) * rate));
+  });
+
+  it('처치 골드 · 흡수의 기준은 사냥터보다 한 단계 위까지 — 전선을 밀어도 사냥보다 크게 벌지 않는다', () => {
+    const p = at(12);
+    const far = { ...p, dungeon: { ...p.dungeon, cleared: 30 } };
+    expect(dungeonInit(far, 25, 1, cfg).rewardStage).toBe(13);
+    expect(dungeonInit(p, 5, 1, cfg).rewardStage).toBe(5 + cfg.dungeon.levels.refStageBase - 1);
+  });
+
+  it('첫 클리어 보석은 정수로, 단계가 오를수록 조금씩 많아진다', () => {
+    expect(Number.isInteger(firstClearGems(37, cfg))).toBe(true);
+    expect(firstClearGems(50, cfg)).toBeGreaterThan(firstClearGems(1, cfg));
+  });
+
+  it('같은 판(runId)은 한 번만 반영하고, id 가 없거나 너무 길면 받지 않는다', () => {
+    const p = at(cfg.dungeon.unlockStage);
+    const s = summary();
+    const once = finishDungeon(p, s, cfg);
+    expect(once.ok).toBe(true);
+    if (!once.ok) return;
+    expect(once.value.dungeon.claimed).toEqual([s.runId]);
+    expect(finishDungeon(once.value, s, cfg)).toEqual({ ok: false, error: { code: 'ALREADY_CLAIMED' } });
+    expect(finishDungeon(p, summary({ runId: '' }), cfg)).toEqual({ ok: false, error: { code: 'INVALID_REWARD' } });
+    expect(finishDungeon(p, summary({ runId: 'x'.repeat(65) }), cfg)).toEqual({ ok: false, error: { code: 'INVALID_REWARD' } });
+    // 기록은 최근 20 판까지
+    let q = once.value;
+    for (let i = 0; i < 25; i++) {
+      const r = finishDungeon(q, summary(), cfg);
+      if (r.ok) q = r.value;
+    }
+    expect(q.dungeon.claimed).toHaveLength(20);
+  });
+
+  it('형태의 던전 전투 방식은 세기 보정에 들어간다', () => {
+    const p = strong(20);
+    const withForm = (form: 'flame' | 'vampire' | 'iron') => dungeonPower({ ...p, slime: { ...p.slime, form, unlockedForms: [form] } }, 10, cfg);
+    const base = { ...p, slime: { ...p.slime, form: 'flame' as const, unlockedForms: ['flame' as const] } };
+    const ratio = withForm('vampire') / withForm('flame');
+    expect(ratio).toBeGreaterThan(0);
+    expect(dungeonPower(base, 10, cfg)).toBe(withForm('flame'));
   });
 });

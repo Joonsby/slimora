@@ -120,6 +120,8 @@ if (configErrors.length > 0) {
   const mountBattle = (parent: HTMLElement) => {
     game = createGame(parent, session, shown);
     const mounted = game;
+    // 개발 서버에서만 — 장면 · 오브젝트 수를 콘솔로 볼 수 있게
+    if (import.meta.env.DEV) Object.assign((window as unknown as { slimora: object }).slimora, { game });
     return () => {
       mounted.destroy(true);
       if (game === mounted) game = null;

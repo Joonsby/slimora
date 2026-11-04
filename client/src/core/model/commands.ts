@@ -43,4 +43,6 @@ export type RuleError =
   | { code: 'AD_LIMIT' }
   | { code: 'UNKNOWN_PRODUCT' }
   | { code: 'UNKNOWN_RESEARCH' }
-  | { code: 'NOT_ENOUGH_CRYSTALS'; need: number; have: number };
+  | { code: 'NOT_ENOUGH_CRYSTALS'; need: number; have: number }
+  /** 이미 결과를 반영한 던전 판 */
+  | { code: 'ALREADY_CLAIMED' };

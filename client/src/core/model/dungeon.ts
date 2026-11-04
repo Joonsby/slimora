@@ -20,12 +20,12 @@ export interface SkillDef<L> {
 }
 
 export interface SkillDefs {
-  /** every 번째 공격마다 대상 둘레 radius 안의 적에게 공격력 × mul 폭발. burn 이면 화상 1중첩 */
-  fireburst: SkillDef<{ every: number; mul: number; radius: number; burn: boolean }>;
+  /** every 번째 공격마다 대상 둘레 radius 안의 적에게 공격력 × mul 폭발 (중심의 대상은 × (1 + center)). burn 이면 화상 1중첩 */
+  fireburst: SkillDef<{ every: number; mul: number; radius: number; burn: boolean; center: number }>;
   /** every 번째 공격마다 대상에서 가까운 적으로 jumps 번 튀는 번개. 튈 때마다 피해 × falloff, stunChance 로 기절 */
   chain: SkillDef<{ every: number; jumps: number; mul: number; falloff: number; stunChance: number; stunMs: number }>;
-  /** 공격마다 분열탄 extra 개를 다른 적에게 (공격력 × mul) */
-  split: SkillDef<{ extra: number; mul: number }>;
+  /** 공격마다 분열탄 extra 개를 다른 적에게 (공격력 × mul). 적이 모자라 남는 탄은 같은 대상에게 × same */
+  split: SkillDef<{ extra: number; mul: number; same: number }>;
   /** 맞힐 때마다 독 1중첩 — 중첩당 초당 공격력 × dps, 피해감소 무시. spread 면 죽을 때 옆 적에게 옮는다 */
   poison: SkillDef<{ dps: number; durationMs: number; maxStacks: number; spread: boolean }>;
   /** HP 가 hpBelow 아래로 떨어지면 최대 HP × ratio 보호막 (cooldownMs 마다 한 번). shockwave > 0 이면 깨질 때 모든 적에게 공격력 × shockwave */
@@ -61,6 +61,8 @@ export interface DungeonFormDef {
   desc: string;
   /** 선택지에 두 배로 잘 나오는 스킬 */
   affinity: SkillId;
+  /** 세기(dungeonPower) 보정 — 이 형태의 던전 전투 방식이 능력치보다 얼마나 센가 (시뮬레이션으로 맞춘다) */
+  power: number;
   /** 처치하면 최대 HP × killHeal 회복 */
   killHeal?: number;
   /** 처치하면 다음 공격이 곧바로 나간다 */
@@ -140,6 +142,8 @@ export interface UltimateSpec {
   perKill: number;
   /** 맞을 때마다 (화상 제외). 던전만 쓴다 */
   perHurt?: number;
+  /** 보스가 나오면 이만큼 찬다. 던전만 쓴다 */
+  bossArrival?: number;
   /** 공격력 × damageMul. 피해감소는 armorPierce 만큼 무시 */
   damageMul: number;
   armorPierce: number;
@@ -164,9 +168,10 @@ export interface DungeonConfig {
   unlockStage: StageId;
   /**
    * 단계 L 의 기준 스테이지 = refStageBase + refStageStep × (L − 1) (마지막 스테이지까지).
-   * powerBase = 「적정」으로 보는 (슬라임 초당 피해 × 실질 HP) ÷ (기준 스테이지 HP × 공격력)
+   * powerBase = 세기 1 로 보는 (슬라임 초당 피해 × 실질 HP) ÷ (기준 스테이지 HP × 공격력).
+   * 세기가 difficulty.easy · fair · hard 이상이면 쉬움 · 적정 · 어려움 (아래는 매우 어려움), recommend 이상인 가장 높은 단계를 추천한다
    */
-  levels: { count: number; refStageBase: number; refStageStep: number; powerBase: number };
+  levels: { count: number; refStageBase: number; refStageStep: number; powerBase: number; difficulty: { easy: number; fair: number; hard: number }; recommend: number };
   waves: {
     /** 웨이브별 일반 몬스터 수 (보스 웨이브는 0) */
     monsters: number[];
@@ -194,11 +199,19 @@ export interface DungeonConfig {
   /** 이 웨이브가 시작되기 전에 스킬을 고른다 */
   picks: { beforeWaves: number[]; size: number; rerolls: number };
   ultimate: UltimateSpec;
+  /** 아직 한 번도 깨지 못한 사람의 1 단계 — 보스 예고가 windupMul 배로 길고, 보스가 나오면 필살기가 bossCharge 까지 찬다 */
+  assist: { windupMul: number; bossCharge: number };
+  /** 던전의 흡혈 효율 — 여러 적을 한꺼번에 쳐서 사냥터보다 낮게 */
+  lifesteal: number;
+  /** 스킬 피해(폭발 · 번개 · 충격파)의 흡혈은 그 위에 이 비율만큼 더 */
+  skillLifesteal: number;
   /** 슬라임에게 화상 능력이 없을 때 스킬 · 연계가 거는 화상 */
   burn: { dpsRatio: number; durationMs: number; maxStacks: number };
   rewards: {
     /** 처치 골드 배율 */
     goldMul: number;
+    /** 흡수 배율 — 여러 마리를 빨리 잡는 던전이 본편 특성 성장을 앞지르지 않게 (결과를 반영할 때 곱한다) */
+    absorbMul: number;
     crystalsPerWave: number;
     crystalsPerBoss: number;
     crystalsClear: number;
@@ -206,6 +219,8 @@ export interface DungeonConfig {
     firstClearGems: { base: number; perLevel: number };
     /** 시너지를 처음 발견하면 보석 */
     synergyGems: number;
+    /** 그 단계의 세기(dungeonPower)가 power 이상이면 결정 × crystals · 골드 × gold — 너무 쉬운 단계 반복 방지 */
+    easy: { power: number; crystals: number; gold: number }[];
   };
   skills: SkillDefs;
   synergies: SynergyDefs;
@@ -220,7 +235,13 @@ export interface DungeonConfig {
 export type DungeonPhase = 'choosing' | 'fighting' | 'waveClear' | 'cleared' | 'failed';
 
 export interface DungeonInit {
+  /** 한 판의 고유 id — 결과를 반영할 때 기록해 같은 판의 보상을 두 번 받지 않는다 */
+  runId: string;
   level: number;
+  /** 처치 골드 · 흡수의 기준 스테이지 — 사냥터보다 높은 단계를 밀어도 사냥보다 크게 벌지 않게 */
+  rewardStage: StageId;
+  /** 처음 깰 때까지의 도움 (DungeonConfig.assist) */
+  assist: boolean;
   slime: CombatStats;
   /** 진화 형태 (던전 전투 방식) */
   form: FormId | null;
@@ -291,8 +312,12 @@ export interface DungeonRewards {
 }
 
 export interface DungeonState {
+  /** DungeonInit.runId */
+  id: string;
   now: number;
   level: number;
+  rewardStage: StageId;
+  assist: boolean;
   refStage: StageId;
   phase: DungeonPhase;
   /** waveClear 가 끝나는 시각 */
@@ -320,11 +345,31 @@ export interface DungeonState {
   kills: number;
   rewards: DungeonRewards;
   goldMul: number;
-  /** 결과 화면용 — 피해 출처별 합계 · 필살기 횟수 · 차단 횟수 */
-  record: { damage: Partial<Record<DamageSource, number>>; ultimates: number; blocked: number; bossKills: number };
+  record: DungeonRecord;
 }
 
 export type DamageSource = 'hit' | 'split' | 'explosion' | 'lightning' | 'poison' | 'burn' | 'splash' | 'ally' | 'ultimate' | 'thorns' | 'shockwave';
+/** 슬라임이 받는 피해의 출처 */
+export type HurtSource = 'hit' | 'burn' | BossPatternKind;
+
+/** 결과 화면 · 패배 원인 분석용 기록 */
+export interface DungeonRecord {
+  /** 준 피해 출처별 합계 */
+  damage: Partial<Record<DamageSource, number>>;
+  ultimates: number;
+  /** 필살기로 끊거나 깬 횟수 */
+  blocked: number;
+  bossKills: number;
+  /** 받은 피해(HP) 출처별 합계 */
+  taken: Partial<Record<HurtSource, number>>;
+  /** 보스가 예고한 패턴 횟수 */
+  casts: Partial<Record<BossPatternKind, number>>;
+  /** 필살기로 대응한 횟수 — 내려찍기 차단 · 경화 파괴 · 숨결 약화 */
+  countered: Partial<Record<BossPatternKind, number>>;
+  /** 필살기가 다 찬 채로 맞은 큰 공격 (내려찍기 · 숨결) */
+  missed: number;
+  killedBy: HurtSource | null;
+}
 
 export type DungeonEvent =
   | { type: 'dOffer'; at: number; skills: SkillId[]; rerolls: number }
@@ -336,7 +381,7 @@ export type DungeonEvent =
   | { type: 'dAttack'; at: number; target: number; split: number[] }
   | { type: 'dMonsterAttack'; at: number; seq: number }
   | { type: 'dHit'; at: number; seq: number; amount: number; crit: boolean; source: DamageSource }
-  | { type: 'dHurt'; at: number; amount: number; absorbed: number; source: 'hit' | 'burn' | BossPatternKind; heavy: boolean }
+  | { type: 'dHurt'; at: number; amount: number; absorbed: number; source: HurtSource; heavy: boolean }
   | { type: 'dExplosion'; at: number; seq: number; slot: number; radius: number; toxic: boolean }
   | { type: 'dLightning'; at: number; path: number[]; storm: boolean; mini: boolean }
   | { type: 'dStatus'; at: number; seq: number; status: 'poison' | 'burn' | 'stun'; stacks: number }
@@ -357,6 +402,7 @@ export type DungeonEvent =
 
 /** 결과 — 진행 상태에 반영하는 커맨드의 재료 */
 export interface DungeonSummary {
+  runId: string;
   level: number;
   /** 깬 웨이브 수 (0~10) */
   waves: number;

@@ -52,6 +52,8 @@ const VIEW_SLOTS: readonly (readonly [number, number])[] = [
   [1.9, 0.9],
 ];
 
+/** 몬스터를 누르는 영역의 최소 크기 (CSS px) */
+const MIN_TAP = 48;
 const SLIME_SCALE = 0.9;
 const SLIME_TOP = 108;
 /** 디자인 크기에 곱하는 몬스터 크기. 여럿이 서야 해서 사냥터보다 작다 */
@@ -108,6 +110,8 @@ export class DungeonScene extends Phaser.Scene {
   private healShownAt = 0;
   private hpLag = 1;
   private frenzy = 0;
+  /** 전장에 보스가 있다 — 부하를 비켜 세운다 */
+  private bossOnField = false;
   /** 지금 그리는 판 — 바뀌면 화면을 비운다 */
   private run: Readonly<DungeonState> | null = null;
   private unsubscribe: (() => void)[] = [];
@@ -154,8 +158,8 @@ export class DungeonScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, this.cleanup, this);
   }
 
+  /** 세션은 createGame 이 게임 루프에서 한 번 진행한다 — 장면은 그리기만 */
   update(time: number, delta: number): void {
-    this.session.tick(delta);
     this.drawFrame(time, delta);
   }
 
@@ -226,7 +230,8 @@ export class DungeonScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(art.top);
     this.vignette.setDisplaySize(w, h);
     this.bannerText.setFontSize(Math.round(30 * unit)).setStroke('#1a1026', Math.round(7 * unit));
-    this.banner.setPosition(w / 2, h * 0.34);
+    // HUD(단계 · 웨이브 · 시너지 · 보스 막대)가 화면의 1/3 가까이 되는 짧은 화면에서도 가리지 않게
+    this.banner.setPosition(w / 2, h * 0.4);
     (this.banner.list[0] as Phaser.GameObjects.Image).setDisplaySize(w, 64 * unit);
     this.createEmitters();
     for (const m of this.monsters.values()) this.placeMonster(m);
@@ -316,11 +321,19 @@ export class DungeonScene extends Phaser.Scene {
     return m;
   }
 
-  /** 자리의 발 위치. 보스는 크니 조금 뒤로 */
+  /** 자리의 발 위치. 보스는 크니 앞쪽에 두고, 보스가 있으면 부하를 오른쪽으로 비켜 세운다 (좁은 화면에서 겹치지 않게) */
   private slotPos(slot: number, boss: boolean): { x: number; y: number } {
     const [sx, sy] = VIEW_SLOTS[slot] ?? [0, 0];
     const { frontX, gapX, gapY, groundY } = this.layout;
-    return { x: frontX + sx * gapX + (boss ? gapX * 0.45 : 0), y: groundY + sy * gapY };
+    const shift = boss ? gapX * 0.2 : this.bossOnField ? gapX * 0.35 : 0;
+    return { x: frontX + sx * gapX + shift, y: groundY + sy * gapY };
+  }
+
+  /** 보스가 들어오거나 쓰러지면 부하 자리를 다시 잡는다 */
+  private setBossOnField(on: boolean): void {
+    if (this.bossOnField === on) return;
+    this.bossOnField = on;
+    for (const m of this.monsters.values()) if (!m.boss) this.placeMonster(m);
   }
 
   private monsterScale(defId: string, boss: boolean, slot = 0): number {
@@ -338,9 +351,20 @@ export class DungeonScene extends Phaser.Scene {
     const s = this.monsterScale(m.defId, m.boss, m.slot);
     m.idle?.stop();
     m.sprite.setPosition(p.x, p.y - meta.hover * s * this.texRes * 0.7).setScale(s).setDepth(DEPTH.monster + (p.y / this.layout.h) * 10);
+    this.fitHitArea(m.sprite, s);
     m.idle = meta.hover
       ? this.tweens.add({ targets: m.sprite, y: m.sprite.y - 6 * this.layout.unit, duration: 650 + m.slot * 60, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       : this.tweens.add({ targets: m.sprite, scaleY: s * 1.04, scaleX: s * 0.98, duration: 820 + m.slot * 70, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** 누르는 영역은 그림보다 작지 않고, 손가락 크기(MIN_TAP CSS px)보다 작지도 않게 — 작은 박쥐도 누르기 쉽게 */
+  private fitHitArea(sprite: Phaser.GameObjects.Image, scale: number): void {
+    const area = sprite.input?.hitArea as Phaser.Geom.Rectangle | undefined;
+    if (!area) return;
+    const min = (MIN_TAP * this.dpr) / scale;
+    const w = Math.max(sprite.width, min);
+    const h = Math.max(sprite.height, min);
+    area.setTo((sprite.width - w) / 2, (sprite.height - h) / 2, w, h);
   }
 
   private showMonster(seq: number, defId: string, slot: number, boss: boolean, animate: boolean): void {
@@ -361,6 +385,7 @@ export class DungeonScene extends Phaser.Scene {
     });
     const view: MonsterView = { seq, defId, sprite, slot, boss, idle: null, tint: null };
     this.monsters.set(seq, view);
+    if (boss) this.setBossOnField(true);
     this.placeMonster(view);
     if (!animate) return;
     const { x, y } = sprite;
@@ -380,6 +405,7 @@ export class DungeonScene extends Phaser.Scene {
     const m = this.monsters.get(seq);
     if (!m) return;
     this.monsters.delete(seq);
+    if (m.boss) this.setBossOnField(false);
     m.idle?.stop();
     this.tweens.killTweensOf(m.sprite);
     m.sprite.disableInteractive();
@@ -547,7 +573,8 @@ export class DungeonScene extends Phaser.Scene {
       this.sparks?.setParticleTint(0xfff3b0);
       this.sparks?.explode(8, x, top + 20 * this.layout.unit);
     }
-    this.texts.show(x, top - 10 * this.layout.unit, text, { color: style.color, size: this.px(style.size), pop });
+    // 체력바(머리 위 8) 위에서 떠오르게 — 막대를 가리지 않게
+    this.texts.show(x, top - 22 * this.layout.unit, text, { color: style.color, size: this.px(style.size), pop });
     if (e.source === 'poison' || e.source === 'burn') return;
     // 맞으면 하얗게 번쩍 + 뒤로 밀림
     m.sprite.setTintFill(0xffffff);

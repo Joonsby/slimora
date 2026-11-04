@@ -940,3 +940,267 @@
 .modal.confirm h2 {
   font-size: 22px;
 }
+
+/* ── 보스 예고에 맞춘 필살기 버튼 ─────────────────────────
+ * 끊을 수 있는 공격을 예고하면 붉게 맥동하며 할 일(끊기 · 약화 · 깨기)을 보여 준다. 비어 있으면 흐린 붉은 테만 */
+.ult-btn.counter {
+  animation: ult-counter 0.55s ease-in-out infinite;
+}
+
+.ult-btn.counter .ult-label {
+  background: linear-gradient(#ff7a7a, #d6283a);
+  color: #fff;
+  font-size: 13px;
+}
+
+.ult-btn.counter-wait {
+  box-shadow: 0 0 0 3px rgba(255, 96, 96, 0.55);
+}
+
+@keyframes ult-counter {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 80, 80, 0.85), 0 0 22px 6px rgba(255, 90, 60, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(255, 80, 80, 0), 0 0 36px 14px rgba(255, 90, 60, 0.9);
+    transform: scale(1.07);
+  }
+}
+
+/* ── 멈춤 · 포기 (오른쪽 위는 토스 닫기 자리라 hud-top 이 비워 둔다) ── */
+.dungeon-hud-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.dungeon-hud-actions .hud-btn.give-up {
+  margin-left: 0;
+}
+
+.hud-btn.pause-btn {
+  justify-content: center;
+  /* 손가락으로 누르기 좋게 44px — 겉은 34px 알약 그대로 */
+  position: relative;
+  min-width: 40px;
+  padding: 0 12px;
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.hud-btn.pause-btn::after,
+.hud-btn.give-up::after {
+  content: '';
+  position: absolute;
+  inset: -5px -3px;
+}
+
+.hud-btn.give-up {
+  position: relative;
+}
+
+.hud-btn.pause-btn:disabled {
+  opacity: 0.45;
+}
+
+.modal-backdrop.pause-backdrop {
+  background: rgba(10, 6, 20, 0.62);
+}
+
+.pause-panel h2 {
+  margin-bottom: 2px;
+}
+
+/* ── 잠깐 뜨는 안내 (첫 필살기 · 첫 차단) — 위쪽 보스 막대 · 예고 문구를 가리지 않게 스킬 막대 바로 위 빈 땅에 ── */
+.toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 124px);
+  left: 50%;
+  z-index: 9;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 9px 16px;
+  border-radius: 16px;
+  background: rgba(20, 12, 38, 0.88);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: toast-in 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+.toast.good {
+  border: 2px solid #ffd34d;
+  color: #ffe9a3;
+}
+
+.toast.hint {
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(0.92);
+  }
+}
+
+/* ── 스킬 선택 — 첫 판 설명 · 다음 웨이브 · 쓰임 ─────────── */
+.pick-explain {
+  margin: -2px 0 2px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.next-wave small {
+  display: block;
+  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.next-wave.boss small {
+  color: rgba(255, 190, 190, 0.85);
+}
+
+.skill-role {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: -2px;
+  color: var(--skill);
+  font-size: 12px;
+  font-weight: 800;
+  filter: brightness(0.78) saturate(1.3);
+}
+
+/* ── 결과 — 쓰러진 이유 · 다음에 해 볼 것 ───────────────── */
+.defeat {
+  margin: 4px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid #f3d9ff;
+  border-radius: 16px;
+  background: #faf3ff;
+  text-align: left;
+}
+
+.defeat-cause {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.defeat-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #4d3e66;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.defeat-tips li::marker {
+  color: var(--purple);
+}
+
+/* ── 이어하기 ─────────────────────────────────────────── */
+.dungeon-resume {
+  text-align: center;
+}
+
+.resume-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #8f6cff, #3a2378);
+}
+
+/* ── 로비 — 난이도 · 결정 감소 · 첫 클리어 도움 ─────────── */
+.level-diff {
+  padding: 1px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.level-diff.easy {
+  background: var(--mint);
+}
+
+.level-diff.fair {
+  background: #3b9be0;
+}
+
+.level-diff.hard {
+  background: var(--orange);
+}
+
+.level-diff.brutal {
+  background: var(--danger);
+}
+
+.level-info .level-note {
+  max-width: 260px;
+  color: #b0560f;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.level-info .level-note.good {
+  color: var(--mint-ink);
+}
+
+/* 결과 화면 보상은 두 칸씩 — 한 화면에 이유 · 보상 · 버튼이 다 들어오게 */
+.dungeon-result .reward-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dungeon-result .reward {
+  flex: 1 1 calc(50% - 6px);
+  padding: 7px 10px;
+  font-size: 16px;
+}
+
+.dungeon-result .reward.gold {
+  flex-basis: 100%;
+  font-size: 22px;
+}
+
+.dungeon-result .reward.absorb img {
+  width: 26px;
+}
+
+.synergy-chip.more {
+  padding-inline: 9px;
+}
+
+/* 시너지 칩은 한 줄 — 셋까지만 이름으로 보여 주므로 360px 에서도 들어간다 */
+.synergy-chips {
+  flex-wrap: nowrap;
+}
+
+.synergy-chip {
+  flex: none;
+  white-space: nowrap;
+}

@@ -12,6 +12,7 @@ import type {
   DungeonMonster,
   DungeonState,
   DungeonSummary,
+  HurtSource,
   SkillId,
 } from '../model/dungeon';
 import type { MonsterId } from '../model/ids';
@@ -36,7 +37,7 @@ const MAX_ACTIONS_PER_STEP = 100_000;
 const FIRST_SWING_MS = 450;
 /** 자리가 없어 기다리던 적은 자리가 나고 이만큼 뒤에 들어온다 */
 const REFILL_MS = 500;
-/** 남는 분열탄은 같은 대상에게 이 비율로 */
+/** 용병 분열탄이 남으면 같은 대상에게 이 비율로 */
 const SAME_TARGET_SPLIT = 0.5;
 
 type Action =
@@ -58,8 +59,11 @@ export function waveCount(cfg: GameConfig): number {
 export function createDungeon(init: DungeonInit, cfg: GameConfig): { state: DungeonState; events: DungeonEvent[] } {
   const u = cfg.dungeon.ultimate;
   const state: DungeonState = {
+    id: init.runId,
     now: 0,
     level: init.level,
+    rewardStage: init.rewardStage,
+    assist: init.assist,
     refStage: dungeonRefStage(init.level, cfg),
     phase: 'choosing',
     phaseUntil: 0,
@@ -82,7 +86,7 @@ export function createDungeon(init: DungeonInit, cfg: GameConfig): { state: Dung
     kills: 0,
     rewards: { gold: 0, kills: {}, absorb: {} },
     goldMul: init.goldMul,
-    record: { damage: {}, ultimates: 0, blocked: 0, bossKills: 0 },
+    record: { damage: {}, ultimates: 0, blocked: 0, bossKills: 0, taken: {}, casts: {}, countered: {}, missed: 0, killedBy: null },
   };
   const events: DungeonEvent[] = [];
   nextWaveOrPick(state, cfg, events);
@@ -103,7 +107,7 @@ export function dungeonUltReady(state: DungeonState, cfg: GameConfig): boolean {
 }
 
 export function summarizeDungeon(state: DungeonState): DungeonSummary {
-  return { level: state.level, waves: state.wavesCleared, cleared: state.phase === 'cleared', bossKills: state.record.bossKills, rewards: state.rewards, synergies: state.synergies };
+  return { runId: state.id, level: state.level, waves: state.wavesCleared, cleared: state.phase === 'cleared', bossKills: state.record.bossKills, rewards: state.rewards, synergies: state.synergies };
 }
 
 /**
@@ -193,7 +197,11 @@ export function useDungeonUltimate(state: DungeonState, cfg: GameConfig): Dungeo
       events.push({ type: 'dGuard', at, seq: m.seq, on: false });
     }
   }
-  if (blocked || broke) state.record.blocked += 1;
+  const r = state.record;
+  if (blocked || broke) r.blocked += 1;
+  if (blocked) r.countered.smash = (r.countered.smash ?? 0) + 1;
+  if (broke) r.countered.guard = (r.countered.guard ?? 0) + 1;
+  if (weakened) r.countered.breath = (r.countered.breath ?? 0) + 1;
   const s = state.slime;
   const hits = state.monsters.map((m) => ({ m, raw: s.stats.attack * u.damageMul * (1 - m.stats.damageReduction * (1 - u.armorPierce)) }));
   const total = hits.reduce((sum, h) => sum + Math.max(1, Math.floor(incoming(state, h.m, h.raw, cfg))), 0);
@@ -397,8 +405,8 @@ function spawnNext(state: DungeonState, cfg: GameConfig, events: DungeonEvent[])
     burn: null,
     poison: null,
     stunUntil: 0,
-    gold: Math.max(1, Math.round(monsterGold(item.defId, state.refStage, cfg) * state.goldMul * cfg.dungeon.rewards.goldMul)),
-    absorb: monsterAbsorb(item.defId, state.refStage, cfg),
+    gold: Math.max(1, Math.round(monsterGold(item.defId, state.rewardStage, cfg) * state.goldMul * cfg.dungeon.rewards.goldMul)),
+    absorb: monsterAbsorb(item.defId, state.rewardStage, cfg),
     boss: bossDef
       ? { id: item.boss!, next: 0, nextAt: now + bossDef.firstPatternMs, casting: null, guardUntil: 0, guardReduction: 0, staggerUntil: 0, enraged: false }
       : null,
@@ -408,6 +416,11 @@ function spawnNext(state: DungeonState, cfg: GameConfig, events: DungeonEvent[])
     state.allies.forEach((a, i) => (a.nextAttackAt = now + Math.round(a.intervalMs * (0.5 + 0.2 * i))));
   }
   events.push({ type: 'dSpawn', at: now, seq: state.seq, defId: item.defId, slot, maxHp: stats.maxHp, boss: item.boss });
+  // 보스가 나오면 필살기가 찬다 — 첫 큰 공격을 끊을 기회. 처음 깨는 중이면 다 채워 준다
+  if (bossDef) {
+    gainCharge(state, cfg.dungeon.ultimate.bossArrival ?? 0, cfg, events);
+    if (state.assist && state.ult.charge < cfg.dungeon.assist.bossCharge) setCharge(state, cfg.dungeon.assist.bossCharge, cfg, events);
+  }
 }
 
 /** 일반 몬스터 = 기준 스테이지 몬스터 × 던전 배율 × 웨이브 상승 */
@@ -462,12 +475,12 @@ function slimeAttack(state: DungeonState, cfg: GameConfig, events: DungeonEvent[
     const venom = state.synergies.includes('venomVolley') ? syn.venomVolley.params.extraStacks : 0;
     const scatter = state.synergies.includes('scatterBolt') ? syn.scatterBolt.params : null;
     for (const m of extras) {
-      basicHit(state, m, stats, split.mul * (m === target ? SAME_TARGET_SPLIT : 1), 'split', venom, cfg, events);
+      basicHit(state, m, stats, split.mul * (m === target ? split.same : 1), 'split', venom, cfg, events);
       if (scatter && nextFloat(state.rng) < scatter.chance) lightning(state, m.slot, stats, { jumps: 1, mul: scatter.mul, falloff: 1, stunChance: 0, stunMs: 0 }, m, false, true, cfg, events);
     }
   }
   const fb = skillSpec(state.skills, 'fireburst', cfg);
-  if (fb && s.attacks % fb.every === 0) explosion(state, center, target.seq, stats, fb.mul, fb.radius, fb.burn, cfg, events);
+  if (fb && s.attacks % fb.every === 0) explosion(state, center, target.seq, stats, fb, cfg, events);
   const ch = skillSpec(state.skills, 'chain', cfg);
   if (ch) {
     const storm = state.synergies.includes('stormChain');
@@ -485,7 +498,8 @@ function basicHit(state: DungeonState, m: DungeonMonster, stats: CombatStats, mu
   const critRoll = stats.critChance > 0 ? nextFloat(state.rng) : 1;
   const hit = computeHit(stats, m.stats, critRoll, mul);
   const dealt = damageMonster(state, m, hit.amount, source, hit.crit, cfg, events);
-  if (stats.lifesteal > 0) healSlime(state, lifestealAmount(dealt, stats.lifesteal), events);
+  // 여러 적을 한꺼번에 치는 던전에서는 흡혈이 사냥터보다 훨씬 세다 — lifesteal 배율로 낮춘다
+  if (stats.lifesteal > 0) healSlime(state, lifestealAmount(dealt, stats.lifesteal * cfg.dungeon.lifesteal), events);
   if (m.hp > 0) {
     const burn = state.slime.stats.burn;
     if (burn && nextFloat(state.rng) < burn.chance) addBurn(state, m, 1, cfg, events);
@@ -500,6 +514,14 @@ function basicHit(state: DungeonState, m: DungeonMonster, stats: CombatStats, mu
   }
 }
 
+/** 스킬 피해 한 번 — 기본 공격처럼 치명타가 터진다 (치명타가 오를수록 범위 스킬도 강해진다) */
+function skillHit(state: DungeonState, m: DungeonMonster, stats: CombatStats, mul: number, source: DamageSource, cfg: GameConfig, events: DungeonEvent[]): void {
+  const hit = computeHit(stats, m.stats, stats.critChance > 0 ? nextFloat(state.rng) : 1, mul);
+  const dealt = damageMonster(state, m, hit.amount, source, hit.crit, cfg, events);
+  const steal = stats.lifesteal * cfg.dungeon.lifesteal * cfg.dungeon.skillLifesteal;
+  if (steal > 0) healSlime(state, lifestealAmount(dealt, steal), events);
+}
+
 /** 대상과 가까운 다른 적부터. 모자라면 같은 대상에게 */
 function splitTargets(state: DungeonState, target: DungeonMonster, count: number): DungeonMonster[] {
   const others = state.monsters.filter((m) => m !== target && m.hp > 0).sort((a, b) => slotDistance(a.slot, target.slot) - slotDistance(b.slot, target.slot) || a.seq - b.seq);
@@ -508,13 +530,16 @@ function splitTargets(state: DungeonState, target: DungeonMonster, count: number
   return picks;
 }
 
-function explosion(state: DungeonState, slot: number, seq: number, stats: CombatStats, mul: number, radius: number, burn: boolean, cfg: GameConfig, events: DungeonEvent[]): void {
+/** 폭발 — 중심의 대상은 center 만큼 더 아프다 (혼자 남은 보스에게도 쓸모 있게) */
+function explosion(state: DungeonState, slot: number, seq: number, stats: CombatStats, fb: { mul: number; radius: number; burn: boolean; center: number }, cfg: GameConfig, events: DungeonEvent[]): void {
+  const { radius, burn } = fb;
   const toxic = state.synergies.includes('toxicBlast') ? cfg.dungeon.synergies.toxicBlast.params : null;
   events.push({ type: 'dExplosion', at: state.now, seq, slot, radius, toxic: toxic !== null });
   for (const m of [...state.monsters]) {
     if (m.hp <= 0 || slotDistance(m.slot, slot) > radius + 1e-9) continue;
+    const mul = fb.mul * (m.seq === seq ? 1 + fb.center : 1);
     const k = toxic && m.poison ? mul * (1 + toxic.bonus) : mul;
-    damageMonster(state, m, computeHit(stats, m.stats, 1, k).amount, 'explosion', false, cfg, events);
+    skillHit(state, m, stats, k, 'explosion', cfg, events);
     if (m.hp <= 0) continue;
     if (toxic) addPoison(state, m, toxic.stacks, cfg, events);
     if (burn) addBurn(state, m, 1, cfg, events);
@@ -552,7 +577,7 @@ function lightning(
   let k = spec.mul;
   for (const m of path) {
     if (m.hp > 0) {
-      damageMonster(state, m, computeHit(stats, m.stats, 1, k).amount, 'lightning', false, cfg, events);
+      skillHit(state, m, stats, k, 'lightning', cfg, events);
       if (m.hp > 0 && !m.boss && spec.stunChance > 0 && nextFloat(state.rng) < spec.stunChance) {
         m.stunUntil = Math.max(m.stunUntil, state.now + spec.stunMs);
         m.nextAttackAt = Math.max(m.nextAttackAt, m.stunUntil);
@@ -566,7 +591,9 @@ function lightning(
 function addPoison(state: DungeonState, m: DungeonMonster, stacks: number, cfg: GameConfig, events: DungeonEvent[]): void {
   const p = skillSpec(state.skills, 'poison', cfg);
   if (!p || stacks <= 0 || m.hp <= 0) return;
-  const dps = state.slime.stats.attack * p.dps;
+  // 독은 치명타가 터지지 않는다 — 대신 치명타 기대값만큼 세진다 (치명타가 오르는 후반에도 쓸모 있게)
+  const st = state.slime.stats;
+  const dps = st.attack * p.dps * (1 + st.critChance * (st.critMultiplier - 1));
   const endsAt = state.now + p.durationMs;
   if (m.poison) {
     m.poison = { ...m.poison, stacks: Math.min(p.maxStacks, m.poison.stacks + stacks), dpsPerStack: Math.max(m.poison.dpsPerStack, dps), endsAt };
@@ -629,9 +656,9 @@ function shieldBreak(state: DungeonState, cfg: GameConfig, events: DungeonEvent[
   events.push({ type: 'dShieldBreak', at: state.now, shockwave: shock > 0, flame: flame !== null });
   const stats = state.slime.stats;
   for (const m of [...state.monsters]) {
-    if (shock > 0 && m.hp > 0) damageMonster(state, m, computeHit(stats, m.stats, 1, shock).amount, 'shockwave', false, cfg, events);
+    if (shock > 0 && m.hp > 0) skillHit(state, m, stats, shock, 'shockwave', cfg, events);
     if (flame && m.hp > 0) {
-      damageMonster(state, m, computeHit(stats, m.stats, 1, flame.mul).amount, 'explosion', false, cfg, events);
+      skillHit(state, m, stats, flame.mul, 'explosion', cfg, events);
       addBurn(state, m, flame.burnStacks, cfg, events);
     }
   }
@@ -696,8 +723,9 @@ function bossCast(state: DungeonState, m: DungeonMonster, cfg: GameConfig, event
   const b = m.boss!;
   const def = cfg.dungeon.bosses[b.id]!;
   const pattern = def.cycle[b.next % def.cycle.length]!;
-  const windup = Math.round(pattern.windupMs * (b.enraged ? def.enrage.windupMul : 1));
+  const windup = Math.round(pattern.windupMs * (b.enraged ? def.enrage.windupMul : 1) * (state.assist ? cfg.dungeon.assist.windupMul : 1));
   b.casting = { pattern, startedAt: state.now, impactAt: state.now + windup, weakened: false };
+  state.record.casts[pattern.kind] = (state.record.casts[pattern.kind] ?? 0) + 1;
   events.push({ type: 'dBossCast', at: state.now, seq: m.seq, pattern: pattern.kind, impactAt: b.casting.impactAt, counter: PATTERN_COUNTER[pattern.kind] });
 }
 
@@ -711,6 +739,7 @@ function bossImpact(state: DungeonState, m: DungeonMonster, cfg: GameConfig, eve
   b.nextAt = now + Math.round(def.patternGapMs * (b.enraged ? def.enrage.gapMul : 1));
   const p = cast.pattern;
   events.push({ type: 'dBossImpact', at: now, seq: m.seq, pattern: p.kind, weakened: cast.weakened });
+  if ((p.kind === 'smash' || p.kind === 'breath') && !cast.weakened && dungeonUltReady(state, cfg)) state.record.missed += 1;
   switch (p.kind) {
     case 'smash':
       hurtSlime(state, patternDamage(m, state, p.mul, p.hpRatio), 'smash', true, m, cfg, events);
@@ -828,7 +857,7 @@ function killMonster(state: DungeonState, m: DungeonMonster, cfg: GameConfig, ev
   checkWaveEnd(state, cfg, events);
 }
 
-function hurtSlime(state: DungeonState, raw: number, source: 'hit' | 'burn' | BossPatternKind, heavy: boolean, attacker: DungeonMonster | null, cfg: GameConfig, events: DungeonEvent[]): void {
+function hurtSlime(state: DungeonState, raw: number, source: HurtSource, heavy: boolean, attacker: DungeonMonster | null, cfg: GameConfig, events: DungeonEvent[]): void {
   if (state.phase !== 'fighting') return;
   const s = state.slime;
   let amount = Math.max(0, Math.floor(raw));
@@ -836,8 +865,10 @@ function hurtSlime(state: DungeonState, raw: number, source: 'hit' | 'burn' | Bo
   s.shield -= absorbed;
   amount -= absorbed;
   s.hp = Math.max(0, s.hp - amount);
+  state.record.taken[source] = (state.record.taken[source] ?? 0) + amount;
   events.push({ type: 'dHurt', at: state.now, amount, absorbed, source, heavy });
   if (s.hp <= 0) {
+    state.record.killedBy = source;
     state.phase = 'failed';
     events.push({ type: 'dFailed', at: state.now });
     return;
@@ -885,9 +916,13 @@ function healSlime(state: DungeonState, amount: number, events: DungeonEvent[]):
 }
 
 function gainCharge(state: DungeonState, amount: number, cfg: GameConfig, events: DungeonEvent[]): void {
+  setCharge(state, state.ult.charge + amount * state.ult.mul, cfg, events);
+}
+
+function setCharge(state: DungeonState, value: number, cfg: GameConfig, events: DungeonEvent[]): void {
   const max = cfg.dungeon.ultimate.max;
   const before = state.ult.charge;
-  state.ult.charge = Math.min(max, before + amount * state.ult.mul);
+  state.ult.charge = Math.min(max, value);
   if (before < max && state.ult.charge >= max) events.push({ type: 'dUltReady', at: state.now });
 }
 

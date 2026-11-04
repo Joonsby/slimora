@@ -201,6 +201,8 @@ function validateDungeon(cfg: GameConfig, monsterIds: Set<string>, errors: strin
 
   check(cfg.stages.some((s) => s.id === d.unlockStage), `unlockStage: 없는 스테이지 ${d.unlockStage}`);
   check(posInt(d.levels.count) && posInt(d.levels.refStageBase) && posInt(d.levels.refStageStep), 'levels: count · refStageBase · refStageStep 은 1 이상 정수');
+  const t = d.levels.difficulty;
+  check(t.easy > t.fair && t.fair > t.hard && t.hard > 0 && d.levels.recommend > 0, 'levels.difficulty: easy > fair > hard > 0, recommend 양수');
 
   const w = d.waves;
   check(w.monsters.length > 0, 'waves.monsters: 비어 있음');
@@ -221,10 +223,14 @@ function validateDungeon(cfg: GameConfig, monsterIds: Set<string>, errors: strin
   check(d.picks.beforeWaves.every((n) => n >= 1 && n <= w.monsters.length), 'picks.beforeWaves: 없는 웨이브');
   check(posInt(d.picks.size) && Number.isInteger(d.picks.rerolls) && d.picks.rerolls >= 0, 'picks: size 는 1 이상, rerolls 는 0 이상 정수');
   validateUltimate(d.ultimate, 'dungeon.ultimate', errors);
+  check((d.ultimate.bossArrival ?? 0) >= 0 && (d.ultimate.perHurt ?? 0) >= 0, 'ultimate.bossArrival · perHurt: 0 이상');
+  check(ratio(d.skillLifesteal) && ratio(d.lifesteal), 'lifesteal · skillLifesteal: 0~1');
+  check(d.assist.windupMul >= 1 && d.assist.bossCharge >= 0 && d.assist.bossCharge <= d.ultimate.max, 'assist: windupMul 1 이상, bossCharge 0 ~ max');
   check(d.burn.dpsRatio > 0 && posInt(d.burn.durationMs) && posInt(d.burn.maxStacks), 'burn: dpsRatio 양수, durationMs · maxStacks 는 1 이상 정수');
   const r = d.rewards;
-  check(r.goldMul > 0, 'rewards.goldMul: 양수');
+  check(r.goldMul > 0 && r.absorbMul >= 0, 'rewards.goldMul 양수 · absorbMul 0 이상');
   check([r.crystalsPerWave, r.crystalsPerBoss, r.crystalsClear, r.firstClearGems.base, r.firstClearGems.perLevel, r.synergyGems].every((n) => Number.isInteger(n) && n >= 0), 'rewards: 0 이상 정수');
+  check(r.easy.every((s) => s.power > 0 && ratio(s.crystals) && ratio(s.gold)), 'rewards.easy: power 양수, crystals · gold 0~1');
 
   for (const id of SKILL_IDS) {
     const s = d.skills[id];
@@ -238,6 +244,7 @@ function validateDungeon(cfg: GameConfig, monsterIds: Set<string>, errors: strin
       check(bad.length === 0, `skills.${id}.levels[${i}]: 잘못된 값 ${bad.map(([k]) => k).join(', ')}`);
       if ('falloff' in lv) check(ratio(lv.falloff) && ratio(lv.stunChance), `skills.${id}.levels[${i}]: falloff · stunChance 는 0~1`);
       if ('ratio' in lv) check(ratio(lv.ratio) && ratio(lv.hpBelow), `skills.${id}.levels[${i}]: ratio · hpBelow 는 0~1`);
+      if ('same' in lv) check(ratio(lv.same), `skills.${id}.levels[${i}].same: 0~1`);
     });
   }
   for (const id of SYNERGY_IDS) {
@@ -251,6 +258,7 @@ function validateDungeon(cfg: GameConfig, monsterIds: Set<string>, errors: strin
   for (const [id, f] of Object.entries(d.forms)) {
     check(formIds.has(id), `forms.${id}: 없는 형태`);
     check(skillIds.has(f.affinity), `forms.${id}.affinity: 없는 스킬 '${f.affinity}'`);
+    check(f.power > 0, `forms.${id}.power: 양수`);
   }
   uniqueIds(d.links.map((l) => l.id), 'dungeon.links', errors);
   for (const l of d.links) {

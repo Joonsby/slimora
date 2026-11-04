@@ -1,13 +1,18 @@
+import { restoreDungeon } from '../core/dungeon/checkpoint';
 import { lastStageId } from '../core/lookup';
 import type { GameConfig } from '../core/model/config';
-import { SYNERGY_IDS } from '../core/model/dungeon';
+import { SYNERGY_IDS, type DungeonState } from '../core/model/dungeon';
 import type { ProgressState, PurchaseOrder } from '../core/model/progress';
 import { createInitialProgress } from '../core/progression/initial';
 import type { SaveEnvelope } from './ports';
 import { DEFAULT_SETTINGS, normalizeSettings, type GameSettings } from './settings';
 
-/** v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가. v2 → v3: 진화 형태(form · unlockedForms) 추가. v3 → v4: 환생(prestige) 추가. v4 → v5: 보석 · 용병 · 하루 횟수 추가. v5 → v6: 결제(purchases) 추가. v6 → v7: 도전 던전(dungeon) 추가 */
-export const SCHEMA_VERSION = 7;
+/**
+ * v1 → v2: 슬라임에 계열별 흡수량(absorption) 추가. v2 → v3: 진화 형태(form · unlockedForms) 추가. v3 → v4: 환생(prestige) 추가.
+ * v4 → v5: 보석 · 용병 · 하루 횟수 추가. v5 → v6: 결제(purchases) 추가. v6 → v7: 도전 던전(dungeon) 추가.
+ * v7 → v8: 진행 중인 던전(dungeonRun) · 반영한 판 기록(dungeon.claimed) 추가, 던전 단계를 스테이지 2 칸 → 1 칸으로
+ */
+export const SCHEMA_VERSION = 8;
 
 export interface SaveData {
   installId: string;
@@ -16,10 +21,12 @@ export interface SaveData {
   lastActiveAt: number;
   progress: ProgressState;
   settings: GameSettings;
+  /** 진행 중이던 던전 판 (체크포인트). 진행 상태와 한 번에 저장해 보상과 어긋나지 않는다 */
+  dungeonRun: DungeonState | null;
 }
 
 export function newSaveData(cfg: GameConfig, now: number, installId: string): SaveData {
-  return { installId, createdAt: now, lastActiveAt: now, progress: createInitialProgress(cfg), settings: { ...DEFAULT_SETTINGS } };
+  return { installId, createdAt: now, lastActiveAt: now, progress: createInitialProgress(cfg), settings: { ...DEFAULT_SETTINGS }, dungeonRun: null };
 }
 
 export function toEnvelope(data: SaveData, cfg: GameConfig, now: number): SaveEnvelope {
@@ -51,6 +58,15 @@ const MIGRATIONS: Record<number, (data: unknown) => unknown> = {
   5: (data) => data,
   // 던전 기록도 normalizeProgress 가 빈 값으로 채운다
   6: (data) => data,
+  // 던전 단계가 스테이지 2 칸마다 → 1 칸마다로 바뀌었다. 옛 L 단계(스테이지 2L) = 새 2L − 1 단계
+  7: (data) => {
+    const d = data as { progress?: { dungeon?: { cleared?: unknown; best?: Record<string, unknown> } } };
+    const dungeon = d.progress?.dungeon;
+    if (!dungeon) return data;
+    const cleared = typeof dungeon.cleared === 'number' && dungeon.cleared > 0 ? dungeon.cleared * 2 - 1 : 0;
+    const best = Object.fromEntries(Object.entries(dungeon.best ?? {}).map(([level, waves]) => [String(Number(level) * 2 - 1), waves]));
+    return { ...d, progress: { ...d.progress, dungeon: { ...dungeon, cleared, best } } };
+  },
 };
 
 /** 읽을 수 없는 저장이면 null */
@@ -73,7 +89,15 @@ export function restoreSaveData(env: SaveEnvelope, cfg: GameConfig): SaveData | 
     lastActiveAt: finiteOr(raw.lastActiveAt, 0),
     progress: normalizeProgress(raw.progress, cfg),
     settings: normalizeSettings(raw.settings),
+    // 손상된 판은 버린다 — 진행 상태는 그대로 쓴다
+    dungeonRun: raw.dungeonRun === null || raw.dungeonRun === undefined ? null : restoreDungeon(raw.dungeonRun, cfg),
   };
+}
+
+/** 저장에 진행 중인 던전이 있었는데 읽지 못했다 (손상) */
+export function dungeonRunLost(env: SaveEnvelope, data: SaveData): boolean {
+  const raw = (env.data as { dungeonRun?: unknown } | null)?.dungeonRun;
+  return raw !== null && raw !== undefined && data.dungeonRun === null;
 }
 
 /** 손상·조작·설정 변경에 대비해 값을 범위 안으로 되돌린다 */
@@ -122,7 +146,7 @@ export function normalizeProgress(raw: unknown, cfg: GameConfig): ProgressState 
 }
 
 function normalizeDungeon(raw: unknown, cfg: GameConfig): ProgressState['dungeon'] {
-  const d = (raw ?? {}) as { cleared?: unknown; best?: Record<string, unknown>; crystals?: unknown; research?: Record<string, unknown>; synergies?: unknown; runs?: unknown };
+  const d = (raw ?? {}) as { cleared?: unknown; best?: Record<string, unknown>; crystals?: unknown; research?: Record<string, unknown>; synergies?: unknown; runs?: unknown; claimed?: unknown };
   const levels = cfg.dungeon.levels.count;
   const waves = cfg.dungeon.waves.monsters.length;
   const best: Record<number, number> = {};
@@ -139,6 +163,7 @@ function normalizeDungeon(raw: unknown, cfg: GameConfig): ProgressState['dungeon
     research: Object.fromEntries(cfg.dungeon.research.map((r) => [r.id, Math.min(nonNegInt(d.research?.[r.id]), r.maxLevel)])),
     synergies: Array.isArray(d.synergies) ? [...new Set(d.synergies.filter((s): s is string => typeof s === 'string' && synergyIds.has(s)))] : [],
     runs: nonNegInt(d.runs),
+    claimed: Array.isArray(d.claimed) ? [...new Set(d.claimed.filter((s): s is string => typeof s === 'string' && s.length > 0 && s.length <= 64))].slice(-20) : [],
   };
 }
 

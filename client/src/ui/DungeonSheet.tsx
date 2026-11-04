@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { dungeonRefStage } from '../core/dungeon/rules';
 import { SKILL_IDS, SYNERGY_IDS } from '../core/model/dungeon';
-import { dungeonOpen, highestUnlockedLevel, recommendedLevel, researchCost } from '../core/progression/dungeon';
+import { assistActive, crystalRate, difficultyOf, dungeonOpen, dungeonPower, firstClearGems, highestUnlockedLevel, recommendedLevel, researchCost } from '../core/progression/dungeon';
 import { findForm } from '../core/progression/forms';
 import { findMercenary } from '../core/progression/mercenary';
 import { openSheet } from '../store/gameStore';
-import { SKILL_ICON, linkEffectText } from './dungeonText';
+import { DIFFICULTY_NAME, SKILL_ICON, linkEffectText } from './dungeonText';
 import { formatNumber } from './format';
 import { useGame, useGameContext } from './GameContext';
 import { IconCrystal, IconGem, IconLock, IconPortal } from './icons';
@@ -51,7 +51,9 @@ function DungeonLobby() {
   const waves = d.waves.monsters.length;
   const best = progress.dungeon.best[level] ?? 0;
   const firstClear = level > progress.dungeon.cleared;
-  const gems = d.rewards.firstClearGems.base + d.rewards.firstClearGems.perLevel * (level - 1);
+  const gems = firstClearGems(level, config);
+  const difficulty = difficultyOf(dungeonPower(progress, level, config), config);
+  const crystals = crystalRate(progress, level, config);
 
   return (
     <>
@@ -71,9 +73,12 @@ function DungeonLobby() {
         </button>
         <div className="level-info">
           <strong>
-            {level}단계 {level === recommended && <span className="tag">추천</span>}
+            {level}단계 {level === recommended && (difficulty === 'easy' || difficulty === 'fair') && <span className="tag">추천</span>}
           </strong>
+          <span className={`level-diff ${difficulty}`}>{DIFFICULTY_NAME[difficulty]}</span>
           <small>몬스터 세기 · 스테이지 {dungeonRefStage(level, config)} 기준</small>
+          {crystals < 1 && <small className="level-note">너무 쉬운 단계 — 결정 {Math.round(crystals * 100)}%</small>}
+          {assistActive(progress, level) && <small className="level-note good">첫 클리어까지 도움 — 보스 예고가 길고, 보스가 나오면 필살기가 다 차요</small>}
           <span className="level-record">
             최고 기록 {best}/{waves} 웨이브
           </span>

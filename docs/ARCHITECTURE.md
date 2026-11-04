@@ -34,7 +34,7 @@
 │                                                                                    │
 │   ui/ (React)                     game/ (Phaser)                                   │
 │   HUD · 메뉴 · 시트 · 모달           BattleScene · 슬라임/몬스터 뷰 · 이펙트              │
-│      │ 읽기: store 구독               │ update(delta) 마다 session.tick()             │
+│      │ 읽기: store 구독               │ 게임 루프마다 session.tick() 한 번 (createGame) │
 │      │ 쓰기: session.dispatch()       │ 이벤트 구독 → 애니메이션                       │
 │      ▼                               ▼                                             │
 │   store/ (Zustand)  ◀── 갱신 ──  session/ (GameSession)  ── 저장 ──▶ persistence/     │
@@ -91,7 +91,7 @@ slime-mercenaries/
 │  │  ├─ core/                    # ★ 순수 게임 규칙
 │  │  │  ├─ model/                # 타입: ids · effects · config · progress · battle · commands
 │  │  │  ├─ battle/               # engine (step · phase 전이 · 필살기) · damage (피해 · 흡혈 · 화상 계산)
-│  │  │  ├─ dungeon/              # 도전 던전 엔진 (다수 몬스터 · 스킬 · 시너지 · 보스 패턴) · rules — battle/damage · stats 를 그대로 쓴다 (DUNGEON.md)
+│  │  │  ├─ dungeon/              # 도전 던전 엔진 (다수 몬스터 · 스킬 · 시너지 · 보스 패턴) · rules · checkpoint(저장 · 엄격한 복원) · advice(패배 원인) — battle/damage · stats 를 그대로 쓴다 (DUNGEON.md)
 │  │  │  ├─ progression/          # applyCommand (강화 · 흡수 · 스테이지 진행/후퇴) · absorption (레벨 · 특성) · upgrades · initial
 │  │  │  ├─ stats.ts              # deriveSlimeStats · deriveMonsterStats (효과 합산 · 상한)
 │  │  │  ├─ lookup.ts             # 설정 조회
@@ -478,8 +478,9 @@ stepBattle(state, dt):
 ### 6-4. 한 프레임의 흐름
 
 ```
-Phaser BattleScene.update(time, delta)
+Phaser 게임 루프 PRE_STEP (createGame 이 한 번만 구독 — 장면이 몇 개 깨어 있어도 한 번 진행. 장면의 update 는 그리기만)
   └─ session.tick(delta)
+       ├─ 던전 중이면 stepDungeon 만 (멈춤 · 이어할지 묻는 중이면 아무것도 진행하지 않는다) — 경계(선택 · 웨이브 시작 · 돌파)마다 체크포인트 저장
        ├─ events = stepBattle(battle, min(delta, 250))
        ├─ monsterKilled  → dispatch(grantBattleReward)  → store 갱신 → React HUD
        ├─ stageCleared / challengeFailed → applyCommand 가 다음 스테이지 · 모드 결정 (GAME_DESIGN 4-10) → 전투 교체
@@ -594,7 +595,8 @@ export interface SaveEnvelope {
 }
 // 체크섬은 저장소 구현의 몫이다. LocalStorage 에는 { checksum: FNV-1a(JSON(envelope)), envelope } 로 들어간다
 
-// session/saveData.ts — 현재 SCHEMA_VERSION 2 (v1 → v2: slime.absorption 추가)
+// session/saveData.ts — 현재 SCHEMA_VERSION 8 (단계별 마이그레이션은 saveData.ts 머리 주석). v8 부터 진행 중인 던전 판(dungeonRun)이
+// 진행 상태와 같은 봉투에 들어간다 — 한 번에 쓰므로 보상과 체크포인트가 어긋나지 않는다 (DUNGEON.md 15장)
 export interface SaveData {
   installId: string;              // crypto.randomUUID(). 나중에 서버 계정과 연결
   createdAt: number;
