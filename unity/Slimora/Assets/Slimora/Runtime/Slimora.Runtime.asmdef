@@ -1,9 +1,0 @@
-{
-    "name": "Slimora.Runtime",
-    "rootNamespace": "Slimora.View",
-    "references": ["Slimora.Core", "UnityEngine.UI"],
-    "includePlatforms": [],
-    "excludePlatforms": [],
-    "autoReferenced": true,
-    "noEngineReferences": false
-}

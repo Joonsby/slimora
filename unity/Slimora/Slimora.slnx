@@ -1,5 +1,0 @@
-﻿<Solution>
-  <Project Path="Slimora.Runtime.csproj" />
-  <Project Path="Slimora.Core.csproj" />
-  <Project Path="Slimora.Editor.csproj" />
-</Solution>
